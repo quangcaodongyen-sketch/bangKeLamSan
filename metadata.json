@@ -1,0 +1,6 @@
+{
+  "name": "Bang ke Dong vat Hoang da Dinh Van Hung",
+  "description": "Ung dung lap, quan ly va xuat bang ke dong vat hoang da hop phap cua co so Dinh Van Hung.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
