@@ -189,32 +189,29 @@ export async function downloadDocx(data: StatementData) {
   const weightWords = weightToWords(totalWeight);
   const textWeightWords = weightWords.charAt(0).toUpperCase() + weightWords.slice(1);
 
-  // Helper for admin text (Red on Yellow highlight)
+  // Helper for admin text (Red, no highlight, no bold)
   const adminRun = (text: string) => new TextRun({
     text,
     color: "FF0000",
-    bold: true,
-    shading: { fill: "FFFF00" },
+    bold: false,
     size: 24,
     font: "Times New Roman"
   });
 
-  // Helper for buyer text (Blue on Yellow highlight)
+  // Helper for buyer text (Red, no highlight, no bold – same style as admin per user request)
   const buyerRun = (text: string) => new TextRun({
     text,
-    color: "0000FF",
-    bold: true,
-    shading: { fill: "FFFF00" },
+    color: "FF0000",
+    bold: false,
     size: 24,
     font: "Times New Roman"
   });
 
-  // Helper for automatic text (Black on Yellow highlight)
+  // Helper for automatic text (Red, no highlight, no bold)
   const autoRun = (text: string) => new TextRun({
     text,
-    color: "000000",
-    bold: true,
-    shading: { fill: "FFFF00" },
+    color: "FF0000",
+    bold: false,
     size: 24,
     font: "Times New Roman"
   });
@@ -486,7 +483,7 @@ export async function downloadDocx(data: StatementData) {
           new Paragraph({
             children: [
               normalRun("Biển kiểm soát/số hiệu phương tiện: "),
-              adminRun(data.vehiclePlate || "...................................."),
+              normalRun("................................................................................................."),
               normalRun("; thời gian vận chuyển: 05 ngày; từ ngày "),
               adminRun(issueParts.day),
               normalRun(" tháng "),
@@ -706,7 +703,9 @@ export async function downloadDocx(data: StatementData) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Bang_Ke_Lam_San_So_${data.statementNo.replace(/[\/\s]/g, '_')}.docx`;
+  // File name follows the template "Bảng kê ĐVHD số"
+  const safeNo = data.statementNo.replace(/[\/\s]/g, '_');
+  a.download = `Bang_ke_DVHD_so_${safeNo}.docx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

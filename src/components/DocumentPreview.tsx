@@ -4,8 +4,6 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import { 
   ZoomIn, 
   ZoomOut, 
@@ -29,7 +27,6 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
   const page3Ref = useRef<HTMLDivElement>(null);
   
   const [zoom, setZoom] = useState<number>(100);
-  const [isExportingPDF, setIsExportingPDF] = useState<boolean>(false);
 
   const totalQty = data.maleCount + data.femaleCount + data.unknownCount;
   const totalWeight = parseFloat((totalQty * data.weightPerIndividual).toFixed(2));
@@ -41,46 +38,6 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
   // Print function
   const handlePrint = () => {
     window.print();
-  };
-
-  // Export to PDF using html2canvas & jsPDF
-  const handleDownloadPDF = async () => {
-    setIsExportingPDF(true);
-    try {
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      
-      const pages = [page1Ref.current, page2Ref.current, page3Ref.current];
-      
-      for (let i = 0; i < pages.length; i++) {
-        const pageEl = pages[i];
-        if (!pageEl) continue;
-        
-        // Render canvas
-        const canvas = await html2canvas(pageEl, {
-          scale: 2, // High resolution
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          logging: false
-        });
-        
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        
-        if (i > 0) {
-          pdf.addPage();
-        }
-        
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-      }
-      
-      const fileName = `Bang_Ke_Lam_San_So_${data.statementNo.replace(/[\/\s]/g, '_')}.pdf`;
-      pdf.save(fileName);
-    } catch (error) {
-      console.error("Lỗi khi xuất PDF:", error);
-    } finally {
-      setIsExportingPDF(false);
-    }
   };
 
   // 1. Red text on Yellow background (Admin inputs)
@@ -173,15 +130,6 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
           >
             <FileDown className="w-3.5 h-3.5" />
             <span>TẢI WORD</span>
-          </button>
-
-          <button
-            onClick={handleDownloadPDF}
-            disabled={isExportingPDF}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-semibold transition cursor-pointer disabled:opacity-50"
-          >
-            <FileDown className="w-3.5 h-3.5" />
-            <span>{isExportingPDF ? 'ĐANG XUẤT...' : 'TẢI PDF'}</span>
           </button>
 
           <button
