@@ -22,13 +22,15 @@ import {
   Sparkles,
   Bookmark,
   FileText,
-  PlusCircle
+  PlusCircle,
+  MessageSquare
 } from 'lucide-react';
 
 export default function App() {
   // Global Role: 'user' | 'admin'
   const [activePortal, setActivePortal] = useState<'user' | 'admin'>('user');
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
+  const [mobileTab, setMobileTab] = useState<'input' | 'preview'>('input');
 
   // Currently active statement being edited/viewed
   const [formData, setFormData] = useState<StatementData>(() => {
@@ -57,43 +59,43 @@ export default function App() {
     const otherSample1: StatementData = {
       ...sample,
       id: "ST-MOCK1",
-      statementNo: "115/2026/BK-ĐVH",
-      issueDate: "2026-07-10",
-      buyerName: "Trần Quốc Tuấn",
-      buyerCccd: "025091004567",
-      buyerAddress: "Thôn Phú Mỹ, Mỹ Lộc, Nam Định",
-      buyerPhone: "0982.111.222",
-      buyerEmail: "tuanmylan@gmail.com",
-      speciesName: "Rùa Trung Bộ",
-      scientificName: "Mauremys annamensis",
-      maleCount: 8,
-      femaleCount: 12,
+      statementNo: "141/2026/BKLS",
+      issueDate: "2026-07-15",
+      buyerName: "Nguyễn Văn A",
+      buyerCccd: "01234560123456",
+      buyerAddress: "Tổ 20, Phường Ngọc Hà, TP Hà Giang",
+      buyerPhone: "0915 123 456",
+      speciesName: "Chim chào mào",
+      scientificName: "Pycnonotus jocosus",
+      maleCount: 2,
+      femaleCount: 2,
       unknownCount: 0,
-      weightPerIndividual: 1.2,
-      vehiclePlate: "18A-123.45",
+      weightPerIndividual: 0.03, // 4 * 0.03 = 0.12 kg total
+      vehiclePlate: "Xe máy",
+      toAddress: "Hộ kinh doanh Nguyễn Văn A, Tổ 20, Phường Ngọc Hà, TP Hà Giang",
       status: 'submitted',
-      createdAt: "2026-07-10T14:30:00.000Z"
+      createdAt: "2026-07-15T14:30:00.000Z"
     };
 
     const otherSample2: StatementData = {
       ...sample,
       id: "ST-MOCK2",
-      statementNo: "098/2026/BK-ĐVH",
-      issueDate: "2026-06-25",
-      buyerName: "Lâm Thị Mỹ",
-      buyerCccd: "079085002468",
-      buyerAddress: "Phường 5, Quận 3, TP. Hồ Chí Minh",
-      buyerPhone: "0903.888.999",
-      buyerEmail: "my_lam@gmail.com",
-      speciesName: "Voi Châu Á (mẫu xương)",
-      scientificName: "Elephas maximus",
-      maleCount: 0,
-      femaleCount: 0,
-      unknownCount: 1,
-      weightPerIndividual: 45.0,
-      vehiclePlate: "51D-999.99",
-      status: 'archived',
-      createdAt: "2026-06-25T09:15:00.000Z"
+      statementNo: "002/2026/BKLS",
+      issueDate: "2026-07-16",
+      buyerName: "Lê Văn B",
+      buyerCccd: "030096001234",
+      buyerAddress: "789 Trần Hưng Đạo, Hải Phòng",
+      buyerPhone: "0904.555.666",
+      speciesName: "Chim chào mào",
+      scientificName: "Pycnonotus jocosus",
+      maleCount: 10,
+      femaleCount: 15,
+      unknownCount: 0,
+      weightPerIndividual: 0.01,
+      vehiclePlate: "Tự vận chuyển",
+      toAddress: "Hộ kinh doanh Lê Văn B, 789 Trần Hưng Đạo, Hải Phòng",
+      status: 'submitted',
+      createdAt: "2026-07-16T09:15:00.000Z"
     };
 
     return [otherSample1, otherSample2];
@@ -342,10 +344,34 @@ export default function App() {
       <main className="flex-1 flex flex-col min-h-0">
         {activePortal === 'user' ? (
           /* USER PORTAL: Left input, Right preview */
-          <div className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden">
+          <div className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-6 flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:gap-6 overflow-hidden">
             
+            {/* Mobile-only Tab Switcher */}
+            <div className="lg:hidden flex p-1 bg-slate-200/80 rounded-xl mx-2 border border-slate-300/40">
+              <button
+                onClick={() => setMobileTab('input')}
+                className={`flex-1 py-2 px-3 text-center text-xs font-black rounded-lg transition-all ${
+                  mobileTab === 'input'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-700 font-semibold'
+                }`}
+              >
+                1. NHẬP THÔNG TIN
+              </button>
+              <button
+                onClick={() => setMobileTab('preview')}
+                className={`flex-1 py-2 px-3 text-center text-xs font-black rounded-lg transition-all ${
+                  mobileTab === 'preview'
+                    ? 'bg-white text-indigo-700 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-700 font-semibold'
+                }`}
+              >
+                2. XEM TRƯỚC BẢNG KÊ
+              </button>
+            </div>
+
             {/* Left Side: Inputs */}
-            <div className="lg:col-span-5 h-[calc(100vh-160px)] min-h-[500px]">
+            <div className={`lg:col-span-5 h-[calc(100vh-210px)] lg:h-[calc(100vh-160px)] min-h-[450px] ${mobileTab === 'input' ? 'block' : 'hidden lg:block'}`}>
               <InputForm 
                 formData={formData}
                 setFormData={setFormData}
@@ -358,8 +384,8 @@ export default function App() {
             </div>
 
             {/* Right Side: High-fidelity document rendering */}
-            <div className="lg:col-span-7 h-[calc(100vh-160px)] min-h-[500px]">
-              <DocumentPreview data={formData} />
+            <div className={`lg:col-span-7 h-[calc(100vh-210px)] lg:h-[calc(100vh-160px)] min-h-[450px] ${mobileTab === 'preview' ? 'block' : 'hidden lg:block'}`}>
+              <DocumentPreview data={formData} isAdmin={isAdminLoggedIn} />
             </div>
 
           </div>
@@ -412,10 +438,10 @@ export default function App() {
             </p>
             
             <div className="bg-yellow-50 border border-yellow-200 py-2.5 px-6 rounded-2xl font-mono text-base font-bold text-amber-700 mt-4 inline-block tracking-wider">
-              {formData.statementNo || "001"}
+              {formData.statementNo || "001/26/BKLS"}
             </div>
 
-            <div className="border-t border-slate-100 mt-6 pt-5 space-y-2">
+            <div className="border-t border-slate-100 mt-6 pt-5 space-y-3">
               <div className="grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => {
@@ -426,7 +452,7 @@ export default function App() {
                   className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100 text-xs font-bold rounded-xl transition cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>TẢI WORD (.DOCX)</span>
+                  <span>TẢI WORD</span>
                 </button>
 
                 <button

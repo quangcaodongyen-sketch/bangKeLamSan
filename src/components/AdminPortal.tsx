@@ -64,7 +64,7 @@ export default function AdminPortal({
   // Handle Login
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === 'Admin' && password === 'Admin123@') {
+    if (username === 'dinhhai' && password === '123') {
       setIsAdminLoggedIn(true);
       setLoginError('');
     } else {
@@ -148,7 +148,7 @@ export default function AdminPortal({
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition"
-                  placeholder="Nhập: Admin"
+                  placeholder="Nhập tên đăng nhập"
                   required
                 />
                 <User className="absolute left-3 top-3.5 w-4.5 h-4.5 text-slate-400" />
@@ -163,7 +163,7 @@ export default function AdminPortal({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition"
-                  placeholder="Nhập: Admin123@"
+                  placeholder="Nhập mật khẩu"
                   required
                 />
                 <Lock className="absolute left-3 top-3.5 w-4.5 h-4.5 text-slate-400" />
@@ -185,9 +185,7 @@ export default function AdminPortal({
             </button>
           </form>
 
-          <div className="mt-6 text-center text-[11px] text-slate-400 font-medium">
-            Tài khoản dùng thử: <span className="font-semibold text-slate-600">Admin</span> / Mật khẩu: <span className="font-semibold text-slate-600">Admin123@</span>
-          </div>
+          {/* Credentials suggestions removed for security */}
         </div>
       </div>
     );

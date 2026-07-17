@@ -104,6 +104,7 @@ export function weightToWords(weight: number): string {
 
 // Common wildlife species in Vietnam
 export const SPECIES_LIST = [
+  { name: "Chim chào mào", sci: "Pycnonotus jocosus" },
   { name: "Trĩ đỏ khoang cổ", sci: "Phasianus colchicus" },
   { name: "Trĩ xanh", sci: "Phasianus versicolor" },
   { name: "Cầy vòi hương", sci: "Paradoxurus hermaphroditus" },
@@ -150,30 +151,29 @@ export function getSampleStatement(): StatementData {
 
   return {
     id: "ST-" + Math.random().toString(36).substr(2, 9).toUpperCase(),
-    statementNo: "189/2026/BK-ĐVH",
+    statementNo: "001/26/BKLS",
     issueDate: todayStr,
     
     // Buyer
-    buyerName: "Nguyễn Văn Hùng",
-    buyerCccd: "037095004123",
-    buyerAddress: "Số 24 Lý Thường Kiệt, Hoàn Kiếm, Hà Nội",
-    buyerPhone: "0912.345.678",
-    buyerEmail: "",
+    buyerName: "Nguyễn Văn A",
+    buyerCccd: "01234560123456",
+    buyerAddress: "Tổ 20, Phường Ngọc Hà, TP Hà Giang",
+    buyerPhone: "0915 123 456",
 
     // Animal
-    speciesName: "Trĩ đỏ khoang cổ",
-    scientificName: "Phasianus colchicus",
-    maleCount: 15,
-    femaleCount: 20,
+    speciesName: "Chim chào mào",
+    scientificName: "Pycnonotus jocosus",
+    maleCount: 2,
+    femaleCount: 1,
     unknownCount: 0,
-    weightPerIndividual: 1.2,
+    weightPerIndividual: 0.01,
 
     // Transport
     vehiclePlate: "29C-789.45",
     fromDate: todayStr,
     toDate: nextWeekStr,
-    fromAddress: "Trại nuôi Đinh Văn Hùng, Thôn Lập Thành, Đông Yên, Quốc Oai, Hà Nội",
-    toAddress: "Hộ kinh doanh Nguyễn Văn Hùng, Số 24 Lý Thường Kiệt, Hoàn Kiếm, Hà Nội",
+    fromAddress: "Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.",
+    toAddress: "Hộ kinh doanh Nguyễn Văn A, Tổ 20, Phường Ngọc Hà, TP Hà Giang",
 
     status: 'draft',
     createdAt: new Date().toISOString()
@@ -185,21 +185,87 @@ export async function downloadDocx(data: StatementData) {
   const totalQty = data.maleCount + data.femaleCount + data.unknownCount;
   const totalWeight = parseFloat((totalQty * data.weightPerIndividual).toFixed(2));
   const qtyWords = quantityToWords(totalQty);
+  const textQtyWords = qtyWords.charAt(0).toUpperCase() + qtyWords.slice(1);
   const weightWords = weightToWords(totalWeight);
-  const dateFormatted = formatVietnameseDate(data.issueDate);
-  const fromDateFormatted = formatVietnameseDate(data.fromDate);
-  const toDateFormatted = formatVietnameseDate(data.toDate);
+  const textWeightWords = weightWords.charAt(0).toUpperCase() + weightWords.slice(1);
+
+  // Helper for admin text (Red on Yellow highlight)
+  const adminRun = (text: string) => new TextRun({
+    text,
+    color: "FF0000",
+    bold: true,
+    shading: { fill: "FFFF00" },
+    size: 24,
+    font: "Times New Roman"
+  });
+
+  // Helper for buyer text (Blue on Yellow highlight)
+  const buyerRun = (text: string) => new TextRun({
+    text,
+    color: "0000FF",
+    bold: true,
+    shading: { fill: "FFFF00" },
+    size: 24,
+    font: "Times New Roman"
+  });
+
+  // Helper for automatic text (Black on Yellow highlight)
+  const autoRun = (text: string) => new TextRun({
+    text,
+    color: "000000",
+    bold: true,
+    shading: { fill: "FFFF00" },
+    size: 24,
+    font: "Times New Roman"
+  });
+
+  // Helper for normal template text
+  const normalRun = (text: string, bold: boolean = false, italic: boolean = false, size: number = 24) => new TextRun({
+    text,
+    bold,
+    italic,
+    size,
+    font: "Times New Roman"
+  });
+
+  const parseDateParts = (dateStr: string) => {
+    if (!dateStr) return { day: "...", month: "...", year: "..." };
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return { day: "...", month: "...", year: "..." };
+    return {
+      day: padZero(d.getDate()),
+      month: padZero(d.getMonth() + 1),
+      year: d.getFullYear().toString()
+    };
+  };
+
+  const issueParts = parseDateParts(data.issueDate);
+  const toParts = parseDateParts(data.toDate);
 
   // Helper for cells
-  const createCell = (text: string, bold: boolean = false, align: AlignmentType = AlignmentType.LEFT, width: number = 100) => {
+  const createCell = (
+    text: string | TextRun[], 
+    bold: boolean = false, 
+    align: AlignmentType = AlignmentType.LEFT, 
+    width: number = 10,
+    colSpan: number = 1,
+    rowSpan: number = 1
+  ) => {
+    const children = typeof text === 'string' 
+      ? [new Paragraph({
+          children: [new TextRun({ text, bold, size: 20, font: "Times New Roman" })],
+          alignment: align
+        })]
+      : [new Paragraph({
+          children: text,
+          alignment: align
+        })];
+
     return new TableCell({
-      children: [
-        new Paragraph({
-          children: [new TextRun({ text, bold, size: 22, font: "Times New Roman" })],
-          alignment: align,
-        }),
-      ],
+      children,
       width: { size: width, type: WidthType.PERCENTAGE },
+      columnSpan: colSpan > 1 ? colSpan : undefined,
+      rowSpan: rowSpan > 1 ? rowSpan : undefined,
     });
   };
 
@@ -209,390 +275,255 @@ export async function downloadDocx(data: StatementData) {
         properties: {},
         children: [
           // ================= PAGE 1 =================
-          // Form 01 header label
+          // Header Label
           new Paragraph({
             children: [
-              new TextRun({ text: "Mẫu số 01", italic: true, size: 20, font: "Times New Roman" })
+              normalRun("Mẫu số 01", true, false, 24)
             ],
             alignment: AlignmentType.LEFT,
           }),
-          
+          new Paragraph({
+            children: [
+              normalRun(".....................................", false, false, 20)
+            ],
+            alignment: AlignmentType.LEFT,
+          }),
+          new Paragraph({
+            children: [
+              normalRun(".....................................", false, false, 20)
+            ],
+            alignment: AlignmentType.LEFT,
+          }),
+
           // National Header
           new Paragraph({
             children: [
-              new TextRun({ text: "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", bold: true, size: 26, font: "Times New Roman" })
+              normalRun("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", true, false, 26)
             ],
             alignment: AlignmentType.CENTER,
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Độc lập - Tự do - Hạnh phúc", bold: true, size: 24, font: "Times New Roman" })
+              normalRun("Độc lập – Tự do – Hạnh phúc", true, false, 24)
             ],
             alignment: AlignmentType.CENTER,
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "-----------------------", size: 24, font: "Times New Roman" })
+              normalRun("-----------------------", false, false, 24)
             ],
             alignment: AlignmentType.CENTER,
+          }),
+          new Paragraph({ children: [] }), // spacer
+
+          // Details line
+          new Paragraph({
+            children: [
+              normalRun("Số(1): ", true),
+              adminRun(data.statementNo || "001/26/BKLS"),
+              normalRun("\t\t\t\t\tTờ số(2): ...... Tổng số tờ: ......; ...... trang", false, true)
+            ],
+            alignment: AlignmentType.LEFT,
           }),
           new Paragraph({ children: [] }), // spacer
 
           // Title
           new Paragraph({
             children: [
-              new TextRun({ text: "BẢNG KÊ ĐỘNG VẬT HOANG DÃ DÃ NGOẠI", bold: true, size: 32, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.CENTER,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: `Số: ${data.statementNo || "..............."}`, bold: true, italic: true, size: 24, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.CENTER,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: `Lập ngày: ${dateFormatted}`, italic: true, size: 24, font: "Times New Roman" })
+              normalRun("BẢNG KÊ LÂM SẢN", true, false, 32)
             ],
             alignment: AlignmentType.CENTER,
           }),
           new Paragraph({ children: [] }), // spacer
 
-          // Exporter Info
+          // I. General Info
           new Paragraph({
             children: [
-              new TextRun({ text: "1. THÔNG TIN CHỦ CƠ SỞ (NGƯỜI BÁN):", bold: true, size: 24, font: "Times New Roman" })
+              normalRun("I. THÔNG TIN CHUNG", true, false, 24)
+            ]
+          }),
+
+          // 1. Owner
+          new Paragraph({
+            children: [
+              normalRun("1. Thông tin chủ lâm sản:", true)
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Họ và tên: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: "Đinh Văn Hùng", size: 24, font: "Times New Roman" })
+              normalRun("- Tên chủ lâm sản(4): Đinh Văn Hùng", false)
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Địa chỉ: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: "Thôn Lập Thành, Xã Đông Yên, Huyện Quốc Oai, Thành phố Hà Nội", size: 24, font: "Times New Roman" })
+              normalRun("- Số GCN/MSDN/GPTL/ĐKHĐ/CCCD/CMND/HC(5): 002093011338", false)
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Số điện thoại: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: "0987.654.321", size: 24, font: "Times New Roman" }),
-              new TextRun({ text: "   |   Email: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: "dinhvanhung@gmail.com", size: 24, font: "Times New Roman" })
+              normalRun("- Địa chỉ(6): Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.", false)
+            ]
+          }),
+          new Paragraph({
+            children: [
+              normalRun("- Số điện thoại: 0962 313 828 , Địa chi Email: ................................................................", false)
             ]
           }),
           new Paragraph({ children: [] }), // spacer
 
-          // Buyer Info
+          // 2. Buyer
           new Paragraph({
             children: [
-              new TextRun({ text: "2. THÔNG TIN KHÁCH HÀNG (NGƯỜI MUA):", bold: true, size: 24, font: "Times New Roman" })
+              normalRun("2. Thông tin tổ chức, cá nhân mua/nhận chuyển giao quyền sở hữu:", true)
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Họ và tên: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: data.buyerName, size: 24, font: "Times New Roman" })
+              normalRun("- Tên tổ chức, cá nhân(4): "),
+              buyerRun(data.buyerName || "...................................................")
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Số CCCD/Hộ chiếu: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: data.buyerCccd, size: 24, font: "Times New Roman" })
+              normalRun("- Số GCN/MSDN/GPTL/ĐKHĐ/CCCD/CMND/HC(5): "),
+              buyerRun(data.buyerCccd || "...................................................")
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Địa chỉ: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: data.buyerAddress, size: 24, font: "Times New Roman" })
+              normalRun("- Địa chỉ(6): "),
+              buyerRun(data.buyerAddress || "......................................................................................................")
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Số điện thoại: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: data.buyerPhone, size: 24, font: "Times New Roman" })
+              normalRun("- Số điện thoại: "),
+              buyerRun(data.buyerPhone || "......................................"),
+              normalRun(" , Địa chi Email: ...............................................................")
             ]
           }),
           new Paragraph({ children: [] }), // spacer
 
-          // Animal Table Heading
+          // 3. Wildlife Info
           new Paragraph({
             children: [
-              new TextRun({ text: "3. DANH SÁCH ĐỘNG VẬT HOANG DÃ KÊ KHAI:", bold: true, size: 24, font: "Times New Roman" })
-            ]
-          }),
-          new Paragraph({ children: [] }),
-
-          // Table
-          new Table({
-            rows: [
-              // Header Row
-              new TableRow({
-                children: [
-                  createCell("STT", true, AlignmentType.CENTER, 5),
-                  createCell("Tên thông thường", true, AlignmentType.CENTER, 20),
-                  createCell("Tên khoa học", true, AlignmentType.CENTER, 25),
-                  createCell("Đực (con)", true, AlignmentType.CENTER, 10),
-                  createCell("Cái (con)", true, AlignmentType.CENTER, 10),
-                  createCell("KXĐ (con)", true, AlignmentType.CENTER, 10),
-                  createCell("KL/cá thể (kg)", true, AlignmentType.CENTER, 10),
-                  createCell("Tổng SL", true, AlignmentType.CENTER, 10),
-                  createCell("Tổng KL (kg)", true, AlignmentType.CENTER, 10),
-                ],
-              }),
-              // Data Row
-              new TableRow({
-                children: [
-                  createCell("01", false, AlignmentType.CENTER, 5),
-                  createCell(data.speciesName, false, AlignmentType.LEFT, 20),
-                  createCell(data.scientificName, false, AlignmentType.LEFT, 25),
-                  createCell(padZero(data.maleCount), false, AlignmentType.CENTER, 10),
-                  createCell(padZero(data.femaleCount), false, AlignmentType.CENTER, 10),
-                  createCell(padZero(data.unknownCount), false, AlignmentType.CENTER, 10),
-                  createCell(data.weightPerIndividual.toString(), false, AlignmentType.CENTER, 10),
-                  createCell(padZero(totalQty), true, AlignmentType.CENTER, 10),
-                  createCell(totalWeight.toString(), true, AlignmentType.CENTER, 10),
-                ],
-              }),
-              // Totals Row
-              new TableRow({
-                children: [
-                  new TableCell({
-                    children: [
-                      new Paragraph({
-                        children: [new TextRun({ text: "TỔNG CỘNG", bold: true, size: 22, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                    ],
-                    columnSpan: 3,
-                  }),
-                  createCell(padZero(data.maleCount), true, AlignmentType.CENTER, 10),
-                  createCell(padZero(data.femaleCount), true, AlignmentType.CENTER, 10),
-                  createCell(padZero(data.unknownCount), true, AlignmentType.CENTER, 10),
-                  createCell("-", false, AlignmentType.CENTER, 10),
-                  createCell(padZero(totalQty), true, AlignmentType.CENTER, 10),
-                  createCell(totalWeight.toString(), true, AlignmentType.CENTER, 10),
-                ],
-              }),
-            ],
-          }),
-          new Paragraph({ children: [] }),
-
-          // Summary Text
-          new Paragraph({
-            children: [
-              new TextRun({ text: "Tổng số lượng bằng chữ: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: qtyWords + ".", italic: true, size: 24, font: "Times New Roman" })
+              normalRun("3. Thông tin về lâm sản", true)
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Tổng khối lượng bằng chữ: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: weightWords + ".", italic: true, size: 24, font: "Times New Roman" })
+              normalRun("- Tên loài (tên khoa học, tên tiếng việt hoặc tên thương mại): "),
+              autoRun(data.speciesName || "Chim chào mào"),
+              normalRun("/"),
+              autoRun(data.scientificName || "Pycnonotus jocosus"),
+              normalRun(".")
+            ]
+          }),
+          new Paragraph({
+            children: [
+              normalRun("- Nhóm loài: (Thông thường; Nhóm IA, IIA, IB, IIB của danh mục thực vật rừng, động vật rừng nguy cấp, quý, hiếm; Phụ lục I, II, III CITES): ", false, true),
+              normalRun("Thông thường.", true)
+            ]
+          }),
+          new Paragraph({
+            children: [
+              normalRun("- Nguồn gốc(7): "),
+              autoRun(data.speciesName || "Chim chào mào"),
+              normalRun(" được gây nuôi từ trại nuôi sinh sản ĐVHD thông thường của ông Đinh Văn Hùng, đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.")
+            ]
+          }),
+          new Paragraph({
+            children: [
+              normalRun("- Mã HS (áp dụng đối với lâm sản nhập khẩu, xuất khẩu): .............................................................................................")
+            ]
+          }),
+          new Paragraph({
+            children: [
+              normalRun("- Giá trị (nếu có): ..................................................................................................................................................")
+            ]
+          }),
+          new Paragraph({
+            children: [
+              normalRun("- Khối lượng/trọng lượng (bằng số và chữ): Đơn vị tính (m³, kg, ster, lít, mililít): "),
+              autoRun((data.speciesName || "Chim chào mào") + ", trọng lượng: " + totalWeight.toLocaleString('vi-VN') + " kg (" + textWeightWords + ").")
+            ]
+          }),
+          new Paragraph({
+            children: [
+              normalRun("- Số lượng (bằng số và chữ): Đơn vị tính (lóng, khúc, thanh, tấm, hộp, viên, cây,...): "),
+              autoRun((data.speciesName || "Chim chào mào") + ", số lượng: " + padZero(totalQty) + " cá thể (" + textQtyWords + "; "),
+              buyerRun(padZero(data.maleCount) + " đực, " + padZero(data.femaleCount) + " cái"),
+              autoRun(").")
             ]
           }),
 
           // ================= PAGE 2 =================
-          // Form 141 Header Label
           new Paragraph({
             children: [
-              new TextRun({ text: "Mẫu số 141", italic: true, size: 20, font: "Times New Roman" })
+              normalRun("- Thông tin về lô khai thác: ............................................................................................................................................................")
             ],
-            alignment: AlignmentType.LEFT,
-            pageBreakBefore: true, // hard page break to start Page 2
+            pageBreakBefore: true
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `Kèm theo Bảng kê lâm sản số: ${data.statementNo || "..............."}`, italic: true, size: 20, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.RIGHT,
-          }),
-          
-          // National Header
-          new Paragraph({
-            children: [
-              new TextRun({ text: "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", bold: true, size: 26, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.CENTER,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "Độc lập - Tự do - Hạnh phúc", bold: true, size: 24, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.CENTER,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "-----------------------", size: 24, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.CENTER,
-          }),
-          new Paragraph({ children: [] }), // spacer
-
-          // Title Page 2
-          new Paragraph({
-            children: [
-              new TextRun({ text: "XÁC NHẬN CỦA HẠT KIỂM LÂM SỞ TẠI", bold: true, size: 30, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.CENTER,
-          }),
-          new Paragraph({ children: [] }), // spacer
-
-          // Transport Details Section
-          new Paragraph({
-            children: [
-              new TextRun({ text: "4. PHƯƠNG THỨC VÀ HÀNH TRÌNH VẬN CHUYỂN:", bold: true, size: 24, font: "Times New Roman" })
+              normalRun("- Thông tin khác có liên quan (nếu có): .............................................................................................................................................")
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: "Phương tiện vận chuyển: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: `Xe ô tô mang biển số: ${data.vehiclePlate || "...................."}`, size: 24, font: "Times New Roman" })
-            ]
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "Thời gian vận chuyển: ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: `Từ ngày ${fromDateFormatted} đến hết ngày ${toDateFormatted}`, size: 24, font: "Times New Roman" })
-            ]
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "Tuyến đường vận chuyển: ", bold: true, size: 24, font: "Times New Roman" })
-            ]
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "  + Điểm đi (Xuất phát): ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: data.fromAddress, size: 24, font: "Times New Roman" })
-            ]
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "  + Điểm đến (Giao nhận): ", bold: true, size: 24, font: "Times New Roman" }),
-              new TextRun({ text: data.toAddress, size: 24, font: "Times New Roman" })
+              normalRun("4. Thông tin chi tiết tại Bảng kê khai thác kèm theo: ", true),
+              normalRun("(Áp dụng đối với gỗ nguyên liệu; sản phẩm gỗ; khai thác từ rừng tự nhiên hoặc nhập khẩu hoặc xử lý tịch thu hoặc động vật và sản phẩm của động vật thuộc loài nguy cấp, quý, hiếm hoặc thuộc Phụ lục CITES)", false, true),
+              normalRun(":")
             ]
           }),
           new Paragraph({ children: [] }), // spacer
-          new Paragraph({ children: [] }),
 
-          // Certification paragraphs
           new Paragraph({
             children: [
-              new TextRun({ text: "XÁC NHẬN CỦA HẠT KIỂM LÂM HUYỆN QUỐC OAI:", bold: true, size: 24, font: "Times New Roman" })
+              normalRun("5. Thông tin vận chuyển (nếu có):", true)
             ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ 
-                text: `Hạt Kiểm lâm huyện Quốc Oai thuộc Chi cục Kiểm lâm thành phố Hà Nội tiến hành xác nhận bảng kê lâm sản (động vật hoang dã dã ngoại) số: ${data.statementNo || '................'} này đối với chủ cơ sở là ông Đinh Văn Hùng.`, 
-                size: 24, 
-                font: "Times New Roman" 
-              })
-            ],
-            alignment: AlignmentType.JUSTIFY,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ 
-                text: "Căn cứ hồ sơ xin xác nhận vận chuyển lâm sản và biên bản kiểm tra thực tế nguồn gốc lâm sản ngày ...... tháng ...... năm 2026 của Kiểm lâm viên phụ trách địa bàn.", 
-                size: 24, 
-                font: "Times New Roman" 
-              })
-            ],
-            alignment: AlignmentType.JUSTIFY,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: "KẾT QUẢ KIỂM TRA XÁC MINH:", bold: true, size: 24, font: "Times New Roman" })
+              normalRun("Biển kiểm soát/số hiệu phương tiện: "),
+              adminRun(data.vehiclePlate || "...................................."),
+              normalRun("; thời gian vận chuyển: 05 ngày; từ ngày "),
+              adminRun(issueParts.day),
+              normalRun(" tháng "),
+              adminRun(issueParts.month),
+              normalRun(" năm "),
+              adminRun(issueParts.year),
+              normalRun(" đến hết ngày "),
+              autoRun(toParts.day),
+              normalRun(" tháng "),
+              autoRun(toParts.month),
+              normalRun(" năm "),
+              autoRun(toParts.year),
+              normalRun("; Vận chuyển từ: "),
+              normalRun("Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang", true),
+              normalRun(" đến cơ sở ông "),
+              buyerRun(data.buyerName || "........................"),
+              normalRun(", "),
+              buyerRun(data.buyerAddress || "........................................................"),
+              normalRun(".")
             ]
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ 
-                text: `- Lâm sản đề nghị xác nhận vận chuyển gồm có: ${totalQty} cá thể loài ${data.speciesName || "..............."} (${data.scientificName || "........."}).`, 
-                size: 24, 
-                font: "Times New Roman" 
-              })
-            ]
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ 
-                text: "- Nguồn gốc động vật hoang dã: Sinh sản, nuôi dưỡng thế hệ F2 hợp pháp tại trang trại nuôi sinh sản của ông Đinh Văn Hùng được cơ quan nhà nước có thẩm quyền cấp phép hoạt động, đăng ký mã số cơ sở nuôi đúng quy chuẩn kỹ thuật.", 
-                size: 24, 
-                font: "Times New Roman" 
-              })
-            ],
-            alignment: AlignmentType.JUSTIFY,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ 
-                text: "- Tình trạng sức khỏe cá thể tại thời điểm kiểm tra: Hoàn toàn khỏe mạnh, không mang mầm bệnh nguy hiểm, phù hợp các tiêu chuẩn kiểm dịch thú y hiện hành.", 
-                size: 24, 
-                font: "Times New Roman" 
-              })
-            ],
-            alignment: AlignmentType.JUSTIFY,
-          }),
-
-          // ================= PAGE 3 =================
-          // Form 141 Page 3 Header Label
-          new Paragraph({
-            children: [
-              new TextRun({ text: "Mẫu số 141 (tiếp theo)", italic: true, size: 20, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.LEFT,
-            pageBreakBefore: true, // hard page break to start Page 3
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ text: `Kèm theo Bảng kê lâm sản số: ${data.statementNo || "..............."}`, italic: true, size: 20, font: "Times New Roman" })
-            ],
-            alignment: AlignmentType.RIGHT,
           }),
           new Paragraph({ children: [] }), // spacer
 
-          // Certification continuation
           new Paragraph({
             children: [
-              new TextRun({ 
-                text: `Các thông tin về phương tiện vận chuyển mang biển số ${data.vehiclePlate || "............"}, thời gian vận chuyển di chuyển từ ${fromDateFormatted} đến ${toDateFormatted} từ địa chỉ thôn Lập Thành, Đông Yên, Quốc Oai, Hà Nội đến địa chỉ ${data.toAddress || "..................."} là hoàn toàn chính xác và trùng khớp với hiện trạng thực tế.`, 
-                size: 24, 
-                font: "Times New Roman" 
-              })
-            ],
-            alignment: AlignmentType.JUSTIFY,
+              normalRun("6. Hồ sơ kèm theo (nếu có):", true)
+            ]
           }),
           new Paragraph({
             children: [
-              new TextRun({ 
-                text: "Hạt Kiểm lâm huyện Quốc Oai xác nhận số lượng lâm sản trên có nguồn gốc hợp pháp, đủ điều kiện để lưu hành, vận chuyển thương mại trong nước theo quy định pháp luật hiện hành về quản lý thực thực vật rừng, động vật rừng nguy cấp, quý, hiếm.", 
-                size: 24, 
-                font: "Times New Roman" 
-              })
-            ],
-            alignment: AlignmentType.JUSTIFY,
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({ 
-                text: "Bảng kê này được lập thành 03 bản chính có giá trị pháp lý như nhau: 01 bản lưu tại cơ quan kiểm lâm sở tại, 01 bản giao cho chủ lâm sản (người bán), 01 bản đồng hành cùng phương tiện vận chuyển bàn giao cho người mua lưu giữ.", 
-                size: 24, 
-                font: "Times New Roman" 
-              })
-            ],
-            alignment: AlignmentType.JUSTIFY,
+              normalRun("\tChúng tôi/Tôi cam kết những nội dung kê khai trong bảng kê này là đúng sự thật và chịu trách nhiệm trước pháp luật về sự trung thực của thông tin./.")
+            ]
           }),
           new Paragraph({ children: [] }), // spacer
-          new Paragraph({ children: [] }),
+          new Paragraph({ children: [] }), // spacer
 
-          // Signature Block Table (2 columns, transparent borders)
+          // Page 2 Signatures
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             borders: {
@@ -601,7 +532,7 @@ export async function downloadDocx(data: StatementData) {
               left: { style: BorderStyle.NONE, size: 0, color: "auto" },
               right: { style: BorderStyle.NONE, size: 0, color: "auto" },
               insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
-              insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" },
+              insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" }
             },
             rows: [
               new TableRow({
@@ -610,119 +541,162 @@ export async function downloadDocx(data: StatementData) {
                     width: { size: 50, type: WidthType.PERCENTAGE },
                     children: [
                       new Paragraph({
-                        children: [new TextRun({ text: "KIỂM LÂM VIÊN KIỂM TRA", bold: true, size: 24, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                      new Paragraph({
-                        children: [new TextRun({ text: "(Ký, ghi rõ họ tên)", italic: true, size: 20, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                      new Paragraph({ children: [] }),
-                      new Paragraph({ children: [] }),
-                      new Paragraph({ children: [] }),
-                      new Paragraph({
-                        children: [new TextRun({ text: "......................................................", size: 24, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                    ],
-                  }),
-                  new TableCell({
-                    width: { size: 50, type: WidthType.PERCENTAGE },
-                    children: [
-                      new Paragraph({
-                        children: [new TextRun({ text: "HẠT TRƯỞNG HẠT KIỂM LÂM", bold: true, size: 24, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                      new Paragraph({
-                        children: [new TextRun({ text: "(Ký tên, đóng dấu, ghi rõ họ tên)", italic: true, size: 20, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                      new Paragraph({ children: [] }),
-                      new Paragraph({ children: [] }),
-                      new Paragraph({ children: [] }),
-                      new Paragraph({
-                        children: [new TextRun({ text: "......................................................", size: 24, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableRow({
-                children: [
-                  new TableCell({
-                    width: { size: 50, type: WidthType.PERCENTAGE },
-                    children: [
-                      new Paragraph({ children: [] }), // spacer
-                      new Paragraph({ children: [] }),
-                    ]
-                  }),
-                  new TableCell({
-                    width: { size: 50, type: WidthType.PERCENTAGE },
-                    children: [
-                      new Paragraph({ children: [] }),
-                      new Paragraph({ children: [] }),
-                    ]
-                  })
-                ]
-              }),
-              new TableRow({
-                children: [
-                  new TableCell({
-                    width: { size: 50, type: WidthType.PERCENTAGE },
-                    children: [
-                      new Paragraph({
-                        children: [new TextRun({ text: "CHỦ CƠ SỞ (NGƯỜI BÁN)", bold: true, size: 24, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                      new Paragraph({
-                        children: [new TextRun({ text: "(Đinh Văn Hùng - Ký và ghi rõ họ tên)", italic: true, size: 20, font: "Times New Roman" })],
-                        alignment: AlignmentType.CENTER,
-                      }),
-                      new Paragraph({ children: [] }),
-                      new Paragraph({
                         children: [
-                          new TextRun({
-                            text: "ĐÃ KÝ ĐIỆN TỬ\nĐinh Văn Hùng",
-                            bold: true,
-                            size: 18,
-                            font: "Times New Roman",
-                            color: "FF0000"
-                          })
+                          normalRun("Bắc Quang, ngày "),
+                          adminRun(issueParts.day),
+                          normalRun(" tháng "),
+                          adminRun(issueParts.month),
+                          normalRun(" năm "),
+                          adminRun(issueParts.year)
                         ],
                         alignment: AlignmentType.CENTER,
                       }),
-                      new Paragraph({ children: [] }),
                       new Paragraph({
-                        children: [new TextRun({ text: "Đinh Văn Hùng", bold: true, size: 24, font: "Times New Roman" })],
+                        children: [normalRun("XÁC NHẬN CỦA CƠ QUAN", true)],
                         alignment: AlignmentType.CENTER,
                       }),
-                    ],
+                      new Paragraph({
+                        children: [normalRun("CÓ THẨM QUYỀN", true)],
+                        alignment: AlignmentType.CENTER,
+                      }),
+                      new Paragraph({
+                        children: [normalRun("Vào sổ số: ......../2026(8)", false, true, 20)],
+                        alignment: AlignmentType.CENTER,
+                      }),
+                      new Paragraph({
+                        children: [normalRun("(Người có thẩm quyền ký, ghi rõ họ tên, đóng dấu)", false, true, 18)],
+                        alignment: AlignmentType.CENTER,
+                      }),
+                      new Paragraph({ children: [] }),
+                      new Paragraph({ children: [] }),
+                      new Paragraph({ children: [] }),
+                      new Paragraph({
+                        children: [normalRun("HẠT TRƯỞNG", true)],
+                        alignment: AlignmentType.CENTER,
+                      }),
+                    ]
                   }),
                   new TableCell({
                     width: { size: 50, type: WidthType.PERCENTAGE },
                     children: [
                       new Paragraph({
-                        children: [new TextRun({ text: "KHÁCH HÀNG (NGƯỜI MUA)", bold: true, size: 24, font: "Times New Roman" })],
+                        children: [
+                          normalRun("Đồng Yên, ngày "),
+                          adminRun(issueParts.day),
+                          normalRun(" tháng "),
+                          adminRun(issueParts.month),
+                          normalRun(" năm "),
+                          adminRun(issueParts.year)
+                        ],
                         alignment: AlignmentType.CENTER,
                       }),
                       new Paragraph({
-                        children: [new TextRun({ text: "(Ký và ghi rõ họ tên)", italic: true, size: 20, font: "Times New Roman" })],
+                        children: [normalRun("TỔ CHỨC/CÁ NHÂN LẬP BẢNG KÊ", true)],
                         alignment: AlignmentType.CENTER,
                       }),
+                      new Paragraph({
+                        children: [normalRun("(Ký, ghi rõ họ tên, đóng dấu đối với tổ chức)", false, true, 18)],
+                        alignment: AlignmentType.CENTER,
+                      }),
+                      new Paragraph({ children: [] }),
                       new Paragraph({ children: [] }),
                       new Paragraph({ children: [] }),
                       new Paragraph({ children: [] }),
                       new Paragraph({
-                        children: [new TextRun({ text: data.buyerName || "......................................................", bold: true, size: 24, font: "Times New Roman" })],
+                        children: [normalRun("Đinh Văn Hùng", true)],
                         alignment: AlignmentType.CENTER,
                       }),
-                    ],
-                  }),
-                ],
-              }),
-            ],
+                    ]
+                  })
+                ]
+              })
+            ]
           }),
+
+          // ================= PAGE 3 =================
+          new Paragraph({
+            children: [
+              normalRun("BẢNG KÊ CHI TIẾT", true, false, 28)
+            ],
+            alignment: AlignmentType.CENTER,
+            pageBreakBefore: true
+          }),
+          new Paragraph({
+            children: [
+              normalRun("(Kèm theo Bảng kê lâm sản số: ", false, true, 22),
+              adminRun(data.statementNo || "001/26/BKLS"),
+              normalRun(" ngày ", false, true, 22),
+              adminRun(issueParts.day + "/" + issueParts.month + "/" + issueParts.year),
+              normalRun(" của cơ sở nuôi nhốt sinh sản ĐVHD thông thường ông Đinh Văn Hùng)", false, true, 22)
+            ],
+            alignment: AlignmentType.CENTER,
+          }),
+          new Paragraph({ children: [] }), // spacer
+
+          new Paragraph({
+            children: [
+              normalRun("Thông tin chi tiết đối với động vật rừng thông thường, động vật thuộc danh mục loài nguy cấp, quý, hiếm, động vật thuộc các Phụ lục CITES:", true, false, 22)
+            ]
+          }),
+          new Paragraph({ children: [] }), // spacer
+
+          // Structured high-fidelity Page 3 table
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              // Row 1 Header
+              new TableRow({
+                children: [
+                  createCell("TT", true, AlignmentType.CENTER, 5, 1, 2),
+                  createCell("Tên loài", true, AlignmentType.CENTER, 20, 2, 1),
+                  createCell("Số lượng cá thể, trứng", true, AlignmentType.CENTER, 25, 4, 1),
+                  createCell("Khối lượng\n(kg)", true, AlignmentType.CENTER, 10, 1, 2),
+                  createCell("Thế hệ", true, AlignmentType.CENTER, 10, 1, 2),
+                  createCell("Nguồn gốc", true, AlignmentType.CENTER, 25, 1, 2),
+                  createCell("Ghi chú", true, AlignmentType.CENTER, 5, 1, 2),
+                ]
+              }),
+              // Row 2 Header
+              new TableRow({
+                children: [
+                  createCell("Tên tiếng việt / tên thương mại", true, AlignmentType.CENTER, 10),
+                  createCell("Tên khoa học", true, AlignmentType.CENTER, 10),
+                  createCell("Đực", true, AlignmentType.CENTER, 5),
+                  createCell("Cái", true, AlignmentType.CENTER, 5),
+                  createCell("Không xác định", true, AlignmentType.CENTER, 7),
+                  createCell("Tổng", true, AlignmentType.CENTER, 8),
+                ]
+              }),
+              // Row 3 Data
+              new TableRow({
+                children: [
+                  createCell("1", false, AlignmentType.CENTER, 5),
+                  createCell([autoRun(data.speciesName || "Chim chào mào")], false, AlignmentType.LEFT, 10),
+                  createCell([autoRun(data.scientificName || "Pycnonotus jocosus")], false, AlignmentType.LEFT, 10),
+                  createCell([buyerRun(padZero(data.maleCount))], false, AlignmentType.CENTER, 5),
+                  createCell([buyerRun(padZero(data.femaleCount))], false, AlignmentType.CENTER, 5),
+                  createCell([autoRun(padZero(data.unknownCount))], false, AlignmentType.CENTER, 7),
+                  createCell([autoRun(padZero(totalQty))], false, AlignmentType.CENTER, 8),
+                  createCell([autoRun(totalWeight.toLocaleString('vi-VN'))], false, AlignmentType.CENTER, 10),
+                  createCell("F3 và kế tiếp", false, AlignmentType.CENTER, 10),
+                  createCell([autoRun(data.speciesName || "Chim chào mào"), normalRun(" được gây nuôi từ trại nuôi sinh sản ĐVHD thông thường của ông Đinh Văn Hùng, đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.")], false, AlignmentType.LEFT, 25),
+                  createCell("", false, AlignmentType.CENTER, 5),
+                ]
+              }),
+              // Row 4 Totals
+              new TableRow({
+                children: [
+                  createCell("Tổng:", true, AlignmentType.RIGHT, 25, 3, 1),
+                  createCell([autoRun(padZero(data.maleCount))], false, AlignmentType.CENTER, 5),
+                  createCell([autoRun(padZero(data.femaleCount))], false, AlignmentType.CENTER, 5),
+                  createCell([autoRun(padZero(data.unknownCount))], false, AlignmentType.CENTER, 7),
+                  createCell([autoRun(padZero(totalQty))], false, AlignmentType.CENTER, 8),
+                  createCell([autoRun(totalWeight.toLocaleString('vi-VN') + " kg")], false, AlignmentType.CENTER, 10),
+                  createCell("", false, AlignmentType.CENTER, 40, 3, 1),
+                ]
+              })
+            ]
+          })
         ],
       },
     ],
@@ -732,10 +706,9 @@ export async function downloadDocx(data: StatementData) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Bang_Ke_DVHD_${data.statementNo.replace(/\//g, '_')}.docx`;
+  a.download = `Bang_Ke_Lam_San_So_${data.statementNo.replace(/[\/\s]/g, '_')}.docx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-

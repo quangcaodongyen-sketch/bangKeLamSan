@@ -15,7 +15,6 @@ export interface StatementData {
   buyerCccd: string;
   buyerAddress: string;
   buyerPhone: string;
-  buyerEmail: string;
 
   // Animal Information
   speciesName: string;

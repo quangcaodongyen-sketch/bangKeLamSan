@@ -3,18 +3,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useRef, useState } from 'react';
-import { StatementData } from '../types';
-import { formatVietnameseDate, quantityToWords, weightToWords, padZero, downloadDocx } from '../utils';
-import { FileText, FileDown, Printer, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
-import jsPDF from 'jspdf';
+import React, { useState, useRef } from 'react';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { 
+  ZoomIn, 
+  ZoomOut, 
+  RotateCcw, 
+  Printer, 
+  FileDown, 
+  FileText,
+  MessageSquare
+} from 'lucide-react';
+import { StatementData } from '../types';
+import { formatVietnameseDate, downloadDocx, padZero, quantityToWords, weightToWords } from '../utils';
 
 interface DocumentPreviewProps {
   data: StatementData;
+  isAdmin?: boolean;
 }
 
-export default function DocumentPreview({ data }: DocumentPreviewProps) {
+export default function DocumentPreview({ data, isAdmin = false }: DocumentPreviewProps) {
   const page1Ref = useRef<HTMLDivElement>(null);
   const page2Ref = useRef<HTMLDivElement>(null);
   const page3Ref = useRef<HTMLDivElement>(null);
@@ -25,10 +34,6 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
   const totalQty = data.maleCount + data.femaleCount + data.unknownCount;
   const totalWeight = parseFloat((totalQty * data.weightPerIndividual).toFixed(2));
   
-  const formattedDate = formatVietnameseDate(data.issueDate);
-  const formattedFromDate = formatVietnameseDate(data.fromDate);
-  const formattedToDate = formatVietnameseDate(data.toDate);
-
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 10, 150));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 10, 70));
   const handleZoomReset = () => setZoom(100);
@@ -69,7 +74,7 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
       
-      const fileName = `Bang_Ke_DVHD_${data.statementNo.replace(/[\/\s]/g, '_')}.pdf`;
+      const fileName = `Bang_Ke_Lam_San_So_${data.statementNo.replace(/[\/\s]/g, '_')}.pdf`;
       pdf.save(fileName);
     } catch (error) {
       console.error("Lỗi khi xuất PDF:", error);
@@ -78,25 +83,54 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
     }
   };
 
-  // Highlight wrapper
-  const Highlight = ({ children }: { children: React.ReactNode }) => (
-    <span className="bg-amber-100/90 text-amber-900 border border-amber-300/60 px-1.5 py-0.5 rounded font-semibold text-[15px] inline-block shadow-sm select-none">
+  // 1. Red text on Yellow background (Admin inputs)
+  const AdminHighlight = ({ children }: { children: React.ReactNode }) => (
+    <span className="bg-yellow-200/90 text-red-600 font-bold border border-yellow-300 px-1 py-0.5 rounded text-[15px] inline-block shadow-sm select-none">
       {children || "..."}
     </span>
   );
 
+  // 2. Blue text on Yellow background (Buyer/User inputs)
+  const BuyerHighlight = ({ children }: { children: React.ReactNode }) => (
+    <span className="bg-yellow-200/90 text-blue-600 font-bold border border-yellow-300 px-1 py-0.5 rounded text-[15px] inline-block shadow-sm select-none">
+      {children || "..."}
+    </span>
+  );
+
+  // 3. Black text on Yellow background (Auto-calculated/synced fields)
+  const AutoHighlight = ({ children }: { children: React.ReactNode }) => (
+    <span className="bg-yellow-200/90 text-slate-900 font-bold border border-yellow-300 px-1 py-0.5 rounded text-[15px] inline-block shadow-sm select-none">
+      {children || "..."}
+    </span>
+  );
+
+  const parseDateParts = (dateStr: string) => {
+    if (!dateStr) return { day: "...", month: "...", year: "..." };
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return { day: "...", month: "...", year: "..." };
+    return {
+      day: padZero(d.getDate()),
+      month: padZero(d.getMonth() + 1),
+      year: d.getFullYear().toString()
+    };
+  };
+
+  const issueDateParts = parseDateParts(data.issueDate);
+  const fromDateParts = parseDateParts(data.fromDate);
+  const toDateParts = parseDateParts(data.toDate);
+
   return (
     <div className="flex flex-col h-full bg-slate-100 rounded-2xl shadow-inner border border-slate-200">
       {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between p-4 bg-white border-b border-slate-200 rounded-t-2xl gap-3">
+      <div className="flex flex-wrap items-center justify-between p-4 bg-white border-b border-slate-200 rounded-t-2xl gap-3 shadow-xs">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-indigo-600" />
-          <h3 className="font-semibold text-slate-800 text-sm md:text-base">XEM TRƯỚC TÀI LIỆU (3 TRANG)</h3>
+          <h3 className="font-semibold text-slate-800 text-sm md:text-base">XEM TRƯỚC BẢNG KÊ (3 TRANG A4)</h3>
         </div>
         
         {/* Zoom controls & Exports */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200 text-xs mr-2">
+          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200 text-xs mr-1">
             <button 
               onClick={handleZoomOut}
               className="p-1.5 hover:bg-white rounded-md text-slate-600 hover:text-indigo-600 transition"
@@ -121,6 +155,18 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
             </button>
           </div>
 
+          {isAdmin && (
+            <a
+              href="https://zalo.me/0915213717"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition cursor-pointer animate-pulse"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>GỬI ZALO (0915.213.717)</span>
+            </a>
+          )}
+
           <button
             onClick={() => downloadDocx(data)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-lg text-xs font-semibold transition cursor-pointer"
@@ -140,10 +186,10 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white hover:bg-slate-900 rounded-lg text-xs font-semibold transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>IN BẢNG KÊ</span>
+            <span>IN NGAY</span>
           </button>
         </div>
       </div>
@@ -207,133 +253,104 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
           }}
         >
           <div>
-            {/* National Header */}
-            <div className="flex justify-between items-center text-xs italic text-slate-500 mb-1 select-none">
-              <span>Mẫu số 01</span>
-              <span className="opacity-0">Form 01</span>
-            </div>
-            <div className="text-center text-sm">
-              <h4 className="font-bold tracking-tight uppercase text-slate-900 text-lg">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</h4>
-              <p className="font-bold text-slate-800 text-base mt-1">Độc lập - Tự do - Hạnh phúc</p>
-              <div className="w-48 h-0.5 bg-black mx-auto mt-2"></div>
+            {/* Headers block */}
+            <div className="flex justify-between items-start text-xs select-none">
+              <div className="text-left font-serif leading-tight">
+                <span className="font-bold text-[14px]">Mẫu số 01</span>
+                <p className="text-[10px] mt-0.5 text-slate-400">....................................................</p>
+                <p className="text-[10px] text-slate-400">....................................................</p>
+              </div>
+              
+              <div className="text-center">
+                <h4 className="font-bold tracking-tight uppercase text-slate-900 text-sm">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</h4>
+                <p className="font-bold text-slate-800 text-[12px] mt-0.5 underline underline-offset-4 decoration-1">Độc lập – Tự do – Hạnh phúc</p>
+              </div>
             </div>
 
             {/* Document Details Header */}
-            <div className="text-center mt-10">
-              <h2 className="font-bold text-2xl text-slate-900 leading-tight uppercase">BẢNG KÊ ĐỘNG VẬT HOANG DÃ DÃ NGOẠI</h2>
-              <p className="text-base mt-2 font-bold italic">
-                Số bảng kê: <Highlight>{data.statementNo || "..........................."}</Highlight>
-              </p>
-              <p className="text-sm italic mt-1 text-slate-700">
-                Ngày lập: <Highlight>{formattedDate}</Highlight>
-              </p>
-            </div>
-
-            {/* Owner Section */}
-            <div className="mt-8 text-[15px] space-y-1.5 text-slate-800">
-              <h3 className="font-bold uppercase text-slate-900 text-[16px] mb-2">1. THÔNG TIN CHỦ CƠ SỞ (NGƯỜI BÁN)</h3>
-              <p>
-                <span className="font-bold">Họ và tên chủ cơ sở:</span> Đinh Văn Hùng
-              </p>
-              <p>
-                <span className="font-bold">Địa chỉ cư trú:</span> Thôn Lập Thành, Xã Đông Yên, Huyện Quốc Oai, Thành phố Hà Nội
-              </p>
-              <p>
-                <span className="font-bold">Số điện thoại liên hệ:</span> 0987.654.321 <span className="mx-3">|</span> <span className="font-bold">Email:</span> dinhvanhung@gmail.com
-              </p>
-            </div>
-
-            {/* Buyer Section */}
-            <div className="mt-6 text-[15px] space-y-1.5 text-slate-800">
-              <h3 className="font-bold uppercase text-slate-900 text-[16px] mb-2">2. THÔNG TIN KHÁCH HÀNG (NGƯỜI MUA)</h3>
-              <p>
-                <span className="font-bold">Họ và tên người mua:</span> <Highlight>{data.buyerName || "......................................................................"}</Highlight>
-              </p>
-              <p>
-                <span className="font-bold">Số CCCD / Hộ chiếu:</span> <Highlight>{data.buyerCccd || "..................................................."}</Highlight>
-              </p>
-              <p>
-                <span className="font-bold">Địa chỉ thường trú:</span> <Highlight>{data.buyerAddress || "......................................................................................................"}</Highlight>
-              </p>
-              <p>
-                <span className="font-bold">Số điện thoại di động:</span> <Highlight>{data.buyerPhone || "......................................"}</Highlight>
-              </p>
-            </div>
-
-            {/* Animal Section */}
-            <div className="mt-6">
-              <h3 className="font-bold uppercase text-slate-900 text-[16px] mb-2">3. THÔNG TIN ĐỘNG VẬT HOANG DÃ KÊ KHAI</h3>
-              
-              <table className="w-full border-collapse border border-black text-[14px] text-center mt-3">
-                <thead>
-                  <tr className="bg-slate-50 font-bold">
-                    <th className="border border-black px-1.5 py-2 w-10">STT</th>
-                    <th className="border border-black px-2 py-2">Tên loài thông thường</th>
-                    <th className="border border-black px-2 py-2 italic">Tên khoa học (Scientific Name)</th>
-                    <th className="border border-black px-1.5 py-2 w-14">Đực (M)</th>
-                    <th className="border border-black px-1.5 py-2 w-14">Cái (F)</th>
-                    <th className="border border-black px-1.5 py-2 w-14">KXĐ (U)</th>
-                    <th className="border border-black px-2 py-2 w-20">KL/cá thể (kg)</th>
-                    <th className="border border-black px-2 py-2 w-18">Tổng SL (Con)</th>
-                    <th className="border border-black px-2 py-2 w-24">Tổng KL (kg)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border border-black px-1.5 py-2.5 font-bold">01</td>
-                    <td className="border border-black px-2 py-2.5 text-left font-semibold">
-                      <Highlight>{data.speciesName || "...................................."}</Highlight>
-                    </td>
-                    <td className="border border-black px-2 py-2.5 text-left italic">
-                      <Highlight>{data.scientificName || "...................................."}</Highlight>
-                    </td>
-                    <td className="border border-black px-1.5 py-2.5 font-semibold">
-                      <Highlight>{padZero(data.maleCount)}</Highlight>
-                    </td>
-                    <td className="border border-black px-1.5 py-2.5 font-semibold">
-                      <Highlight>{padZero(data.femaleCount)}</Highlight>
-                    </td>
-                    <td className="border border-black px-1.5 py-2.5 font-semibold">
-                      <Highlight>{padZero(data.unknownCount)}</Highlight>
-                    </td>
-                    <td className="border border-black px-2 py-2.5">
-                      <Highlight>{data.weightPerIndividual || "..."}</Highlight>
-                    </td>
-                    <td className="border border-black px-2 py-2.5 font-bold bg-slate-50">
-                      {padZero(totalQty)}
-                    </td>
-                    <td className="border border-black px-2 py-2.5 font-bold bg-slate-50">
-                      {totalWeight.toLocaleString('vi-VN')}
-                    </td>
-                  </tr>
-                  
-                  {/* Totals Row */}
-                  <tr className="font-bold bg-slate-100">
-                    <td className="border border-black px-2 py-2.5 uppercase" colSpan={3}>Tổng cộng cuối bảng</td>
-                    <td className="border border-black px-1.5 py-2.5">{padZero(data.maleCount)}</td>
-                    <td className="border border-black px-1.5 py-2.5">{padZero(data.femaleCount)}</td>
-                    <td className="border border-black px-1.5 py-2.5">{padZero(data.unknownCount)}</td>
-                    <td className="border border-black px-2 py-2.5">-</td>
-                    <td className="border border-black px-2 py-2.5">{padZero(totalQty)}</td>
-                    <td className="border border-black px-2 py-2.5">{totalWeight.toLocaleString('vi-VN')}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* Spell-out block */}
-              <div className="mt-4 space-y-1.5 text-[15px] italic text-slate-800">
-                <p>
-                  <span className="font-bold not-italic">Tổng số lượng (bằng chữ):</span> {quantityToWords(totalQty)}.
-                </p>
-                <p>
-                  <span className="font-bold not-italic">Tổng khối lượng (bằng chữ):</span> {weightToWords(Math.round(totalWeight))}.
-                </p>
+            <div className="flex justify-between items-center mt-6 text-xs font-serif">
+              <div>
+                <span className="font-semibold">Số<sup>(1)</sup>:</span> <AdminHighlight>{data.statementNo || "001/26/BKLS"}</AdminHighlight>
+              </div>
+              <div className="text-right text-slate-500 italic">
+                Tờ số<sup>(2)</sup>: .......  Tổng số tờ: .......; ....... trang
               </div>
             </div>
+
+            <div className="text-center mt-6">
+              <h2 className="font-bold text-xl text-slate-950 leading-tight uppercase tracking-wide">BẢNG KÊ LÂM SẢN</h2>
+              <div className="mx-auto mt-2 border border-slate-700 w-24 p-2 bg-slate-50 flex items-center justify-center font-mono text-[9px] text-slate-500">Mã QR</div>
+            </div>
+
+            {/* I. General Information */}
+            <div className="mt-6 text-[14px] space-y-3.5 text-slate-900 leading-relaxed text-justify">
+              <h3 className="font-bold text-[14px] tracking-wide uppercase">I. THÔNG TIN CHUNG</h3>
+              
+              {/* 1. Seller Info */}
+              <div className="space-y-1">
+                <h4 className="font-bold">1. Thông tin chủ lâm sản:</h4>
+                <p>
+                  - Tên chủ lâm sản<sup>(4)</sup>: <span className="font-semibold">Đinh Văn Hùng</span>
+                </p>
+                <p>
+                  - Số GCN/MSDN/GPTL/ĐKHĐ/CCCD/CMND/HC<sup>(5)</sup>: <span className="font-semibold">002093011338</span>
+                </p>
+                <p>
+                  - Địa chỉ<sup>(6)</sup>: <span className="font-semibold">Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.</span>
+                </p>
+                <p>
+                  - Số điện thoại: <span className="font-semibold">0962 313 828</span> <span className="ml-4">, Địa chỉ Email: ................................................................</span>
+                </p>
+              </div>
+
+              {/* 2. Buyer Info */}
+              <div className="space-y-1">
+                <h4 className="font-bold">2. Thông tin tổ chức, cá nhân mua/nhận chuyển giao quyền sở hữu:</h4>
+                <p>
+                  - Tên tổ chức, cá nhân<sup>(4)</sup>: <BuyerHighlight>{data.buyerName || "..................................................."}</BuyerHighlight>
+                </p>
+                <p>
+                  - Số GCN/MSDN/GPTL/ĐKHĐ/CCCD/CMND/HC<sup>(5)</sup>: <BuyerHighlight>{data.buyerCccd || "..................................................."}</BuyerHighlight>
+                </p>
+                <p>
+                  - Địa chỉ<sup>(6)</sup>: <BuyerHighlight>{data.buyerAddress || "......................................................................................................"}</BuyerHighlight>
+                </p>
+                <p>
+                  - Số điện thoại: <BuyerHighlight>{data.buyerPhone || "......................................"}</BuyerHighlight> <span className="ml-2">, Địa chỉ Email: ...............................................................</span>
+                </p>
+              </div>
+
+              {/* 3. Wildlife info */}
+              <div className="space-y-1.5">
+                <h4 className="font-bold">3. Thông tin về lâm sản:</h4>
+                <p>
+                  - Tên loài (tên khoa học, tên tiếng việt hoặc tên thương mại): <AutoHighlight>{data.speciesName || "Chim chào mào"}</AutoHighlight> / <span className="italic"><AutoHighlight>{data.scientificName || "Pycnonotus jocosus"}</AutoHighlight></span>.
+                </p>
+                <p>
+                  - Nhóm loài: <span className="italic text-slate-700">(Thông thường; Nhóm IA, IIA, IB, IIB của danh mục thực vật rừng, động vật rừng nguy cấp, quý, hiếm; Phụ lục I, II, III CITES):</span> <span className="font-bold">Thông thường.</span>
+                </p>
+                <p>
+                  - Nguồn gốc<sup>(7)</sup>: <span className="font-medium"><AutoHighlight>{data.speciesName || "Chim chào mào"}</AutoHighlight> được gây nuôi từ trại nuôi sinh sản ĐVHD thông thường của ông Đinh Văn Hùng, đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.</span>
+                </p>
+                <p>
+                  - Mã HS (áp dụng đối với lâm sản nhập khẩu, xuất khẩu): ...........................................................................................................
+                </p>
+                <p>
+                  - Giá trị (nếu có): ..................................................................................................................................................................
+                </p>
+                <p>
+                  - Khối lượng/trọng lượng (bằng số và chữ): Đơn vị tính (m³, kg, ster, lít, mililít): <span className="font-semibold"><AutoHighlight>{data.speciesName || "Chim chào mào"}</AutoHighlight>, trọng lượng: <AutoHighlight>{totalWeight.toLocaleString('vi-VN')}</AutoHighlight> kg (<AutoHighlight>{weightToWords(totalWeight)}</AutoHighlight>).</span>
+                </p>
+                <p>
+                  - Số lượng (bằng số và chữ): Đơn vị tính (lóng, khúc, thanh, tấm, hộp, viên, cây,...): <span className="font-semibold"><AutoHighlight>{data.speciesName || "Chim chào mào"}</AutoHighlight>, số lượng: <AutoHighlight>{padZero(totalQty)}</AutoHighlight> cá thể (<AutoHighlight>{quantityToWords(totalQty)}</AutoHighlight>; <BuyerHighlight>{padZero(data.maleCount)}</BuyerHighlight> đực, <BuyerHighlight>{padZero(data.femaleCount)}</BuyerHighlight> cái).</span>
+                </p>
+              </div>
+
+            </div>
           </div>
-          
-          <div className="text-right text-xs text-slate-400 mt-4 border-t border-dashed border-slate-200 pt-2 font-sans">
-            Trang 1 / 3 — Bảng kê động vật rừng dã ngoại hợp pháp
+
+          <div className="text-right text-xs text-slate-400 mt-2 border-t border-dashed border-slate-100 pt-1 font-sans select-none">
+            Trang 1 / 3 — Bảng kê lâm sản
           </div>
         </div>
 
@@ -353,63 +370,72 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
           }}
         >
           <div>
-            {/* National Header */}
-            <div className="flex justify-between items-center text-xs italic text-slate-500 mb-1 select-none">
-              <span>Mẫu số 141</span>
-              <span>Kèm theo Bảng kê lâm sản số: <Highlight>{data.statementNo || "..........."}</Highlight></span>
-            </div>
-            <div className="text-center text-sm">
-              <h4 className="font-bold tracking-tight uppercase text-slate-900 text-lg">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</h4>
-              <p className="font-bold text-slate-800 text-base mt-1">Độc lập - Tự do - Hạnh phúc</p>
-              <div className="w-48 h-0.5 bg-black mx-auto mt-2"></div>
-            </div>
-
-            {/* Transport Section */}
-            <div className="mt-10 text-[15px] space-y-2.5 text-slate-800">
-              <h3 className="font-bold uppercase text-slate-900 text-[16px] mb-3">4. PHƯƠNG THỨC VÀ HÀNH TRÌNH VẬN CHUYỂN</h3>
+            <div className="text-xs italic text-slate-500 mb-2 select-none opacity-0">Mẫu số 01 (tiếp)</div>
+            
+            <div className="text-[14px] space-y-4 text-slate-900 leading-relaxed text-justify">
+              <p>
+                - Thông tin về lô khai thác: ............................................................................................................................................................
+              </p>
+              <p>
+                - Thông tin khác có liên quan (nếu có): .............................................................................................................................................
+              </p>
               
               <p>
-                <span className="font-bold">Phương tiện vận chuyển:</span> Xe ô tô mang biển kiểm soát: <Highlight>{data.vehiclePlate || "...................................."}</Highlight>
+                <span className="font-bold">4. Thông tin chi tiết tại Bảng kê khai thác kèm theo:</span> <span className="italic text-slate-700">(Áp dụng đối với gỗ nguyên liệu; sản phẩm gỗ; khai thác từ rừng tự nhiên hoặc nhập khẩu hoặc xử lý tịch thu hoặc động vật và sản phẩm của động vật thuộc loài nguy cấp, quý, hiếm hoặc thuộc Phụ lục CITES)</span>:
               </p>
-              <p>
-                <span className="font-bold">Thời gian vận chuyển dự kiến:</span> Từ <Highlight>{formattedFromDate}</Highlight> đến hết <Highlight>{formattedToDate}</Highlight>
-              </p>
-              <p className="font-bold">Hành trình tuyến đường di chuyển:</p>
-              <div className="pl-4 space-y-1.5">
-                <p>
-                  <span className="font-semibold">- Địa điểm đi (Xuất phát):</span> <Highlight>{data.fromAddress || "......................................................................................................"}</Highlight>
+
+              <div className="space-y-1.5">
+                <h4 className="font-bold">5. Thông tin vận chuyển (nếu có):</h4>
+                <p className="leading-loose">
+                  Biển kiểm soát/số hiệu phương tiện: <AdminHighlight>{data.vehiclePlate || "...................................."}</AdminHighlight>; thời gian vận chuyển: <span className="font-semibold">05 ngày</span>; từ ngày <AdminHighlight>{issueDateParts.day}</AdminHighlight> tháng <AdminHighlight>{issueDateParts.month}</AdminHighlight> năm <AdminHighlight>{issueDateParts.year}</AdminHighlight> đến hết ngày <AutoHighlight>{toDateParts.day}</AutoHighlight> tháng <AutoHighlight>{toDateParts.month}</AutoHighlight> năm <AutoHighlight>{toDateParts.year}</AutoHighlight>; Vận chuyển từ: <span className="font-semibold">Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang</span> đến cơ sở ông <BuyerHighlight>{data.buyerName || "........................"}</BuyerHighlight>, <BuyerHighlight>{data.buyerAddress || "........................................................"}</BuyerHighlight>.
                 </p>
-                <p>
-                  <span className="font-semibold">- Địa điểm đến (Giao nhận):</span> <Highlight>{data.toAddress || "......................................................................................................"}</Highlight>
+              </div>
+
+              <div className="space-y-1.5">
+                <h4 className="font-bold">6. Hồ sơ kèm theo (nếu có):</h4>
+                <p className="indent-8 text-justify">
+                  Chúng tôi/Tôi cam kết những nội dung kê khai trong bảng kê này là đúng sự thật và chịu trách nhiệm trước pháp luật về sự trung thực của thông tin./.
                 </p>
               </div>
             </div>
 
-            {/* Certification Section */}
-            <div className="mt-8 border-t border-double border-slate-400 pt-6">
-              <h3 className="font-bold uppercase text-center text-slate-900 text-[16px] mb-4">XÁC NHẬN CỦA HẠT KIỂM LÂM SỞ TẠI</h3>
-              
-              <div className="text-[15px] space-y-3.5 text-slate-800 leading-relaxed text-justify">
-                <p>
-                  Hạt Kiểm lâm huyện Quốc Oai thuộc Chi cục Kiểm lâm thành phố Hà Nội tiến hành xác nhận bảng kê lâm sản (động vật hoang dã dã ngoại) số: <Highlight>{data.statementNo || "..........."}</Highlight> này đối với chủ cơ sở là ông <span className="font-bold">Đinh Văn Hùng</span>.
+            {/* Signature Area */}
+            <div className="mt-10 grid grid-cols-2 gap-4 text-center text-[13px] leading-relaxed">
+              <div>
+                <p className="italic text-slate-800">
+                  Bắc Quang, ngày <AdminHighlight>{issueDateParts.day}</AdminHighlight> tháng <AdminHighlight>{issueDateParts.month}</AdminHighlight> năm <AdminHighlight>{issueDateParts.year}</AdminHighlight>
                 </p>
-                <p>
-                  Căn cứ hồ sơ xin xác nhận vận chuyển lâm sản và biên bản kiểm tra thực tế nguồn gốc lâm sản ngày <span className="italic">...... tháng ...... năm 2026</span> của Kiểm lâm viên phụ trách địa bàn.
+                <h5 className="font-bold uppercase text-[13px] mt-1">XAC NHẬN CỦA CƠ QUAN</h5>
+                <h5 className="font-bold uppercase text-[13px]">CÓ THẨM QUYỀN</h5>
+                <p className="text-[11px] text-slate-500 italic mt-0.5">Vào sổ số: ......../2026<sup>(8)</sup></p>
+                <p className="text-[11px] text-slate-400 italic">(Người có thẩm quyền ký, ghi rõ họ tên, đóng dấu)</p>
+                <div className="h-20 flex items-center justify-center">
+                  <span className="text-slate-400 text-xs italic">Ký xác nhận</span>
+                </div>
+                <h5 className="font-bold text-[13px] uppercase">HẠT TRƯỞNG</h5>
+              </div>
+
+              <div>
+                <p className="italic text-slate-800">
+                  Đồng Yên, ngày <AdminHighlight>{issueDateParts.day}</AdminHighlight> tháng <AdminHighlight>{issueDateParts.month}</AdminHighlight> năm <AdminHighlight>{issueDateParts.year}</AdminHighlight>
                 </p>
-                <p>
-                  <span className="font-bold">KẾT QUẢ KIỂM TRA XÁC MINH:</span>
-                </p>
-                <ul className="list-disc pl-5 space-y-1.5">
-                  <li>Lâm sản đề nghị xác nhận vận chuyển gồm có: <span className="font-bold">{totalQty} cá thể</span> loài <span className="font-bold">{data.speciesName || "..............."}</span> (<span className="italic font-semibold">{data.scientificName || "........."}</span>).</li>
-                  <li>Nguồn gốc động vật hoang dã: Sinh sản, nuôi dưỡng thế hệ F2 hợp pháp tại trang trại nuôi sinh sản của ông Đinh Văn Hùng được cơ quan nhà nước có thẩm quyền cấp phép hoạt động, đăng ký mã số cơ sở nuôi đúng quy chuẩn kỹ thuật.</li>
-                  <li>Tình trạng sức khỏe cá thể tại thời điểm kiểm tra: Hoàn toàn khỏe mạnh, không mang mầm bệnh nguy hiểm, phù hợp các tiêu chuẩn kiểm dịch thú y hiện hành.</li>
-                </ul>
+                <h5 className="font-bold uppercase text-[13px] mt-1">TỔ CHỨC/CÁ NHÂN</h5>
+                <h5 className="font-bold uppercase text-[13px]">LẬP BẢNG KÊ</h5>
+                <p className="text-[11px] text-slate-400 italic mt-0.5">(Ký, ghi rõ họ tên, đóng dấu đối với tổ chức)</p>
+                
+                <div className="h-20 flex items-center justify-center select-none">
+                  <div className="border-2 border-red-500 text-red-500 font-serif text-[10px] p-1.5 rounded rotate-[-6deg] uppercase tracking-wider font-bold leading-tight select-none">
+                    Đã ký điện tử<br/>Đinh Văn Hùng
+                  </div>
+                </div>
+                
+                <h5 className="font-bold text-[13px] text-slate-900 uppercase">Đinh Văn Hùng</h5>
               </div>
             </div>
           </div>
 
-          <div className="text-right text-xs text-slate-400 mt-4 border-t border-dashed border-slate-200 pt-2 font-sans">
-            Trang 2 / 3 — Bảng kê động vật rừng dã ngoại hợp pháp
+          <div className="text-right text-xs text-slate-400 mt-2 border-t border-dashed border-slate-100 pt-1 font-sans select-none">
+            Trang 2 / 3 — Bảng kê lâm sản
           </div>
         </div>
 
@@ -417,7 +443,7 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
         <div 
           ref={page3Ref}
           id="preview-page-3"
-          className="bg-white shadow-lg border border-slate-300 rounded-sm p-[20mm] a4-page flex flex-col justify-between"
+          className="bg-white shadow-lg border border-slate-300 rounded-sm p-[20mm] a4-page flex flex-col justify-between animate-fade-in"
           style={{ 
             width: '210mm', 
             height: '297mm', 
@@ -429,63 +455,90 @@ export default function DocumentPreview({ data }: DocumentPreviewProps) {
           }}
         >
           <div>
-            {/* Certification continued */}
-            <div className="flex justify-between items-center text-xs italic text-slate-500 mb-4 border-b border-slate-100 pb-2 select-none">
-              <span>Mẫu số 141 (tiếp theo)</span>
-              <span>Kèm theo Bảng kê lâm sản số: <Highlight>{data.statementNo || "..........."}</Highlight></span>
+            {/* Header label */}
+            <div className="text-center font-bold text-slate-950 text-base uppercase">
+              BẢNG KÊ CHI TIẾT
             </div>
-            <div className="text-[15px] space-y-3 text-slate-800 leading-relaxed text-justify">
-              <p>
-                Các thông tin về phương tiện vận chuyển mang biển số <span className="font-bold">{data.vehiclePlate || "............"}</span>, thời gian vận chuyển di chuyển từ <span className="font-bold">{formattedFromDate}</span> đến <span className="font-bold">{formattedToDate}</span> từ địa chỉ thôn Lập Thành, Đông Yên, Quốc Oai, Hà Nội đến địa chỉ <span className="font-semibold">{data.toAddress || "..................."}</span> là hoàn toàn chính xác và trùng khớp với hiện trạng thực tế.
-              </p>
-              <p>
-                Hạt Kiểm lâm huyện Quốc Oai xác nhận số lượng lâm sản trên có nguồn gốc hợp pháp, đủ điều kiện để lưu hành, vận chuyển thương mại trong nước theo quy định pháp luật hiện hành về quản lý thực vật rừng, động vật rừng nguy cấp, quý, hiếm.
-              </p>
-              <p>
-                Bảng kê này được lập thành 03 bản chính có giá trị pháp lý như nhau: 01 bản lưu tại cơ quan kiểm lâm sở tại, 01 bản giao cho chủ lâm sản (người bán), 01 bản đồng hành cùng phương tiện vận chuyển bàn giao cho người mua lưu giữ.
-              </p>
+            <div className="text-center text-[12px] italic text-slate-800 mt-1 select-none leading-relaxed">
+              (Kèm theo Bảng kê lâm sản số: <AdminHighlight>{data.statementNo || "001/26/BKLS"}</AdminHighlight> ngày <AdminHighlight>{issueDateParts.day}/{issueDateParts.month}/{issueDateParts.year}</AdminHighlight> của cơ sở<br/>nuôi nhốt sinh sản ĐVHD thông thường ông Đinh Văn Hùng)
             </div>
+            
+            <p className="text-[12px] text-justify font-serif text-slate-800 leading-relaxed mt-4">
+              <span className="font-bold">Thông tin chi tiết đối với động vật rừng thông thường, động vật thuộc danh mục nguy cấp, quý, hiếm, động vật thuộc các Phụ lục CITES:</span>
+            </p>
 
-            {/* Signature Area */}
-            <div className="mt-14 grid grid-cols-2 gap-4 text-center text-[14px]">
-              <div>
-                <h5 className="font-bold uppercase text-[15px]">KIỂM LÂM VIÊN KIỂM TRA</h5>
-                <p className="italic text-slate-500 mt-1">(Ký, ghi rõ họ tên)</p>
-                <div className="h-24"></div>
-                <p className="font-semibold text-slate-800">......................................................</p>
-              </div>
-
-              <div>
-                <h5 className="font-bold uppercase text-[15px]">HẠT TRƯỞNG HẠT KIỂM LÂM</h5>
-                <p className="italic text-slate-500 mt-1">(Ký tên, đóng dấu, ghi rõ họ tên)</p>
-                <div className="h-24"></div>
-                <p className="font-bold text-slate-900">......................................................</p>
-              </div>
-            </div>
-
-            <div className="mt-12 grid grid-cols-2 gap-4 text-center text-[14px] border-t border-slate-100 pt-8">
-              <div>
-                <h5 className="font-bold uppercase text-[15px]">CHỦ CƠ SỞ (NGƯỜI BÁN)</h5>
-                <p className="italic text-slate-500 mt-1">(Đinh Văn Hùng - Ký và ghi rõ họ tên)</p>
-                <div className="h-24 flex items-center justify-center">
-                  <div className="border border-red-200 text-red-500 font-serif text-[10px] p-1.5 rounded rotate-[-6deg] uppercase tracking-wider font-bold">
-                    Đã ký điện tử<br/>Đinh Văn Hùng
-                  </div>
-                </div>
-                <p className="font-bold text-slate-800">Đinh Văn Hùng</p>
-              </div>
-
-              <div>
-                <h5 className="font-bold uppercase text-[15px]">KHÁCH HÀNG (NGƯỜI MUA)</h5>
-                <p className="italic text-slate-500 mt-1">(Ký và ghi rõ họ tên)</p>
-                <div className="h-24"></div>
-                <p className="font-bold text-slate-900">{data.buyerName || "......................................................"}</p>
-              </div>
-            </div>
+            {/* Structured High-Fidelity Table */}
+            <table className="w-full border-collapse border border-black text-[12px] text-center mt-3">
+              <thead>
+                <tr className="bg-slate-50 font-bold">
+                  <th className="border border-black px-1 py-3 w-8" rowSpan={2}>TT</th>
+                  <th className="border border-black px-2 py-1" colSpan={2}>Tên loài</th>
+                  <th className="border border-black px-1 py-1" colSpan={4}>Số lượng cá thể, trứng</th>
+                  <th className="border border-black px-1.5 py-1 w-14" rowSpan={2}>Khối lượng<br/>(kg)</th>
+                  <th className="border border-black px-1 py-1 w-16" rowSpan={2}>Thế hệ</th>
+                  <th className="border border-black px-2 py-1 w-52" rowSpan={2}>Nguồn gốc</th>
+                  <th className="border border-black px-1 py-1 w-12" rowSpan={2}>Ghi chú</th>
+                </tr>
+                <tr className="bg-slate-50 font-bold text-[11px]">
+                  <th className="border border-black px-1.5 py-1 w-24">Tên tiếng việt / tên thương mại</th>
+                  <th className="border border-black px-1.5 py-1 italic w-24">Tên khoa học</th>
+                  <th className="border border-black px-1 py-1 w-8">Đực</th>
+                  <th className="border border-black px-1 py-1 w-8">Cái</th>
+                  <th className="border border-black px-1 py-1 w-10">Không xác định</th>
+                  <th className="border border-black px-1 py-1 w-10">Tổng</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-black py-8 font-bold">1</td>
+                  <td className="border border-black px-1 text-left font-semibold">
+                    <AutoHighlight>{data.speciesName || "Chim chào mào"}</AutoHighlight>
+                  </td>
+                  <td className="border border-black px-1 text-left italic">
+                    <AutoHighlight>{data.scientificName || "Pycnonotus jocosus"}</AutoHighlight>
+                  </td>
+                  <td className="border border-black px-0.5 font-semibold text-blue-600 bg-blue-50/20">
+                    <BuyerHighlight>{padZero(data.maleCount)}</BuyerHighlight>
+                  </td>
+                  <td className="border border-black px-0.5 font-semibold text-blue-600 bg-blue-50/20">
+                    <BuyerHighlight>{padZero(data.femaleCount)}</BuyerHighlight>
+                  </td>
+                  <td className="border border-black px-0.5 font-semibold text-slate-500">
+                    <AutoHighlight>{padZero(data.unknownCount)}</AutoHighlight>
+                  </td>
+                  <td className="border border-black px-1 font-bold bg-slate-50/50">
+                    <AutoHighlight>{padZero(totalQty)}</AutoHighlight>
+                  </td>
+                  <td className="border border-black px-1 font-bold bg-slate-50/50">
+                    <AutoHighlight>{totalWeight.toLocaleString('vi-VN')}</AutoHighlight>
+                  </td>
+                  <td className="border border-black px-1 text-xs">
+                    F3 và kế tiếp
+                  </td>
+                  <td className="border border-black px-1.5 py-3 text-[11px] text-justify leading-tight">
+                    <span className="font-semibold"><AutoHighlight>{data.speciesName || "Chim chào mào"}</AutoHighlight></span> được gây nuôi từ trại nuôi sinh sản ĐVHD thông thường của ông Đinh Văn Hùng, đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.
+                  </td>
+                  <td className="border border-black px-1">
+                    {/* Empty */}
+                  </td>
+                </tr>
+                
+                {/* Footer totals */}
+                <tr className="font-bold bg-slate-100 text-[11px]">
+                  <td className="border border-black py-2.5 uppercase text-right px-2" colSpan={3}>Tổng:</td>
+                  <td className="border border-black px-0.5">{padZero(data.maleCount)}</td>
+                  <td className="border border-black px-0.5">{padZero(data.femaleCount)}</td>
+                  <td className="border border-black px-0.5">{padZero(data.unknownCount)}</td>
+                  <td className="border border-black px-1 bg-slate-200/50">{padZero(totalQty)}</td>
+                  <td className="border border-black px-1 bg-slate-200/50">{totalWeight.toLocaleString('vi-VN')} kg</td>
+                  <td className="border border-black" colSpan={3}></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div className="text-right text-xs text-slate-400 mt-4 border-t border-dashed border-slate-200 pt-2 font-sans">
-            Trang 3 / 3 — Bảng kê động vật rừng dã ngoại hợp pháp
+          <div className="text-right text-xs text-slate-400 mt-4 border-t border-dashed border-slate-200 pt-2 font-sans select-none">
+            Trang 3 / 3 — Bảng kê chi tiết
           </div>
         </div>
       </div>

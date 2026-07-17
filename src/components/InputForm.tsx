@@ -59,12 +59,12 @@ export default function InputForm({
         const updated = { ...prev };
         
         if (!updated.speciesName) {
-          updated.speciesName = "Trĩ đỏ khoang cổ";
-          updated.scientificName = "Phasianus colchicus";
+          updated.speciesName = "Chim chào mào";
+          updated.scientificName = "Pycnonotus jocosus";
           changed = true;
         }
-        if (!updated.weightPerIndividual || updated.weightPerIndividual === 1) {
-          updated.weightPerIndividual = 1.2; // default weight for pheasant
+        if (!updated.weightPerIndividual || updated.weightPerIndividual === 1.2) {
+          updated.weightPerIndividual = 0.01; // default weight for bird
           changed = true;
         }
         if (!updated.vehiclePlate) {
@@ -72,7 +72,7 @@ export default function InputForm({
           changed = true;
         }
         if (!updated.fromAddress) {
-          updated.fromAddress = "Trại nuôi Đinh Văn Hùng, Thôn Lập Thành, Đông Yên, Quốc Oai, Hà Nội";
+          updated.fromAddress = "Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.";
           changed = true;
         }
         if (!updated.fromDate) {
@@ -84,7 +84,7 @@ export default function InputForm({
           changed = true;
         }
         if (!updated.statementNo) {
-          updated.statementNo = "001";
+          updated.statementNo = "001/26/BKLS";
           changed = true;
         }
         
