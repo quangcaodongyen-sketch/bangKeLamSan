@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { StatementData, ChatMessage } from './types';
-import { getSampleStatement, padZero } from './utils';
+import { getSampleStatement, padZero, downloadDocx } from './utils';
 import InputForm from './components/InputForm';
 import DocumentPreview from './components/DocumentPreview';
 import AdminPortal from './components/AdminPortal';
@@ -72,7 +72,7 @@ export default function App() {
       unknownCount: 0,
       weightPerIndividual: 0.03, // 4 * 0.03 = 0.12 kg total
       vehiclePlate: "Xe máy",
-      toAddress: "Hộ kinh doanh Nguyễn Văn A, Tổ 20, Phường Ngọc Hà, TP Hà Giang",
+      toAddress: "cơ sở ông Nguyễn Văn A, Tổ 20, Phường Ngọc Hà, TP Hà Giang",
       status: 'submitted',
       createdAt: "2026-07-15T14:30:00.000Z"
     };
@@ -91,9 +91,9 @@ export default function App() {
       maleCount: 10,
       femaleCount: 15,
       unknownCount: 0,
-      weightPerIndividual: 0.01,
+      weightPerIndividual: 0.03,
       vehiclePlate: "Tự vận chuyển",
-      toAddress: "Hộ kinh doanh Lê Văn B, 789 Trần Hưng Đạo, Hải Phòng",
+      toAddress: "cơ sở ông Lê Văn B, 789 Trần Hưng Đạo, Hải Phòng",
       status: 'submitted',
       createdAt: "2026-07-16T09:15:00.000Z"
     };
@@ -192,17 +192,16 @@ export default function App() {
         buyerCccd: "",
         buyerAddress: "",
         buyerPhone: "",
-        buyerEmail: "",
-        speciesName: formData.speciesName || "",
-        scientificName: formData.scientificName || "",
+        speciesName: formData.speciesName || "Chim chào mào",
+        scientificName: formData.scientificName || "Pycnonotus jocosus",
         maleCount: 0,
         femaleCount: 0,
         unknownCount: 0,
-        weightPerIndividual: formData.weightPerIndividual || 1,
-        vehiclePlate: formData.vehiclePlate || "",
+        weightPerIndividual: 0.03,
+        vehiclePlate: "",
         fromDate: new Date().toISOString().split('T')[0],
         toDate: getFiveDaysLaterStr(new Date().toISOString().split('T')[0]),
-        fromAddress: formData.fromAddress || "Trại nuôi Đinh Văn Hùng, Thôn Lập Thành, Đông Yên, Quốc Oai, Hà Nội",
+        fromAddress: "Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.",
         toAddress: "",
         status: 'draft',
         createdAt: new Date().toISOString()
@@ -299,7 +298,7 @@ export default function App() {
               </div>
               <div>
                 <h1 className="font-extrabold text-slate-900 text-sm md:text-base leading-tight">
-                  BẢNG KÊ ĐVHD – ĐINH VĂN HÙNG
+                  BẢNG KÊ CHIM CHÀO MÀO – ĐINH VĂN HÙNG
                 </h1>
                 <p className="text-[10px] md:text-xs text-slate-500 font-semibold uppercase tracking-wider">
                   Trại nuôi sinh sản động vật hoang dã dã ngoại hợp pháp

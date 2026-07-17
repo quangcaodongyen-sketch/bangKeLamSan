@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import { StatementData } from '../types';
 import { formatVietnameseDate, downloadDocx, padZero, quantityToWords, weightToWords } from '../utils';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { QR_CODE_BASE64 } from '../qrCodeBase64';
 
 interface DocumentPreviewProps {
   data: StatementData;
@@ -27,6 +30,7 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
   const page3Ref = useRef<HTMLDivElement>(null);
   
   const [zoom, setZoom] = useState<number>(100);
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
 
   const totalQty = data.maleCount + data.femaleCount + data.unknownCount;
   const totalWeight = parseFloat((totalQty * data.weightPerIndividual).toFixed(2));
@@ -35,21 +39,63 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 10, 70));
   const handleZoomReset = () => setZoom(100);
 
+  const handleDownloadPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pages = ['preview-page-1', 'preview-page-2', 'preview-page-3'];
+      
+      for (let i = 0; i < pages.length; i++) {
+        const pageEl = document.getElementById(pages[i]);
+        if (!pageEl) continue;
+        
+        const originalTransform = pageEl.style.transform;
+        const originalMargin = pageEl.style.marginBottom;
+        pageEl.style.transform = 'none';
+        pageEl.style.marginBottom = '0px';
+        
+        const canvas = await html2canvas(pageEl, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+        });
+        
+        pageEl.style.transform = originalTransform;
+        pageEl.style.marginBottom = originalMargin;
+        
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        if (i > 0) {
+          pdf.addPage();
+        }
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+      }
+      
+      const numPart = data.statementNo.split('/')[0].trim();
+      pdf.save(`Bảng kê ĐVHD số ${numPart}.pdf`);
+    } catch (error) {
+      console.error("Lỗi khi xuất PDF:", error);
+      alert("Đã xảy ra lỗi khi tạo tệp PDF. Vui lòng thử lại!");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   // Print function
   const handlePrint = () => {
     window.print();
   };
 
-  // 1. Red text on Yellow background (Admin inputs)
+  // 1. Red text (Admin inputs) - NO yellow background
   const AdminHighlight = ({ children }: { children: React.ReactNode }) => (
-    <span className="bg-yellow-200/90 text-red-600 font-bold border border-yellow-300 px-1 py-0.5 rounded text-[15px] inline-block shadow-sm select-none">
+    <span className="text-red-600 font-bold select-none text-[15px] mx-0.5">
       {children || "..."}
     </span>
   );
 
-  // 2. Blue text on Yellow background (Buyer/User inputs)
+  // 2. Blue text (Buyer/User inputs) - NO yellow background
   const BuyerHighlight = ({ children }: { children: React.ReactNode }) => (
-    <span className="bg-yellow-200/90 text-blue-600 font-bold border border-yellow-300 px-1 py-0.5 rounded text-[15px] inline-block shadow-sm select-none">
+    <span className="text-blue-600 font-bold select-none text-[15px] mx-0.5">
       {children || "..."}
     </span>
   );
@@ -130,6 +176,15 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
           >
             <FileDown className="w-3.5 h-3.5" />
             <span>TẢI WORD</span>
+          </button>
+
+          <button
+            onClick={handleDownloadPdf}
+            disabled={isExportingPdf}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-lg text-xs font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <FileDown className="w-3.5 h-3.5" />
+            <span>{isExportingPdf ? 'ĐANG TẢI...' : 'TẢI PDF'}</span>
           </button>
 
           <button
@@ -227,7 +282,7 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
 
             <div className="text-center mt-6">
               <h2 className="font-bold text-xl text-slate-950 leading-tight uppercase tracking-wide">BẢNG KÊ LÂM SẢN</h2>
-              <div className="mx-auto mt-2 border border-slate-700 w-24 p-2 bg-slate-50 flex items-center justify-center font-mono text-[9px] text-slate-500">Mã QR</div>
+              <img src={QR_CODE_BASE64} className="mx-auto mt-2 w-24 h-24 object-contain" alt="QR Code" />
             </div>
 
             {/* I. General Information */}
@@ -335,7 +390,7 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
               <div className="space-y-1.5">
                 <h4 className="font-bold">5. Thông tin vận chuyển (nếu có):</h4>
                 <p className="leading-loose">
-                  Biển kiểm soát/số hiệu phương tiện: <AdminHighlight>{data.vehiclePlate || "...................................."}</AdminHighlight>; thời gian vận chuyển: <span className="font-semibold">05 ngày</span>; từ ngày <AdminHighlight>{issueDateParts.day}</AdminHighlight> tháng <AdminHighlight>{issueDateParts.month}</AdminHighlight> năm <AdminHighlight>{issueDateParts.year}</AdminHighlight> đến hết ngày <AutoHighlight>{toDateParts.day}</AutoHighlight> tháng <AutoHighlight>{toDateParts.month}</AutoHighlight> năm <AutoHighlight>{toDateParts.year}</AutoHighlight>; Vận chuyển từ: <span className="font-semibold">Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang</span> đến cơ sở ông <BuyerHighlight>{data.buyerName || "........................"}</BuyerHighlight>, <BuyerHighlight>{data.buyerAddress || "........................................................"}</BuyerHighlight>.
+                  Biển kiểm soát/số hiệu phương tiện: <AdminHighlight>{data.vehiclePlate || "...................................."}</AdminHighlight>; thời gian vận chuyển: <span className="font-semibold">05 ngày</span>; từ ngày <AdminHighlight>{issueDateParts.day}</AdminHighlight> tháng <AdminHighlight>{issueDateParts.month}</AdminHighlight> năm <AdminHighlight>{issueDateParts.year}</AdminHighlight> đến hết ngày <AutoHighlight>{toDateParts.day}</AutoHighlight> tháng <AutoHighlight>{toDateParts.month}</AutoHighlight> năm <AutoHighlight>{toDateParts.year}</AutoHighlight>; Vận chuyển từ: <span className="font-semibold">Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang</span> đến <AutoHighlight>cơ sở ông {data.buyerName || "........................"}, {data.buyerAddress || "........................................................"}</AutoHighlight>.
                 </p>
               </div>
 
@@ -351,7 +406,7 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
             <div className="mt-10 grid grid-cols-2 gap-4 text-center text-[13px] leading-relaxed">
               <div>
                 <p className="italic text-slate-800">
-                  Bắc Quang, ngày <AdminHighlight>{issueDateParts.day}</AdminHighlight> tháng <AdminHighlight>{issueDateParts.month}</AdminHighlight> năm <AdminHighlight>{issueDateParts.year}</AdminHighlight>
+                  Bắc Quang, ngày &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; tháng &nbsp; &nbsp; &nbsp; &nbsp; năm <AdminHighlight>{issueDateParts.year}</AdminHighlight>
                 </p>
                 <h5 className="font-bold uppercase text-[13px] mt-1">XAC NHẬN CỦA CƠ QUAN</h5>
                 <h5 className="font-bold uppercase text-[13px]">CÓ THẨM QUYỀN</h5>
@@ -445,11 +500,11 @@ export default function DocumentPreview({ data, isAdmin = false }: DocumentPrevi
                   <td className="border border-black px-1 text-left italic">
                     <AutoHighlight>{data.scientificName || "Pycnonotus jocosus"}</AutoHighlight>
                   </td>
-                  <td className="border border-black px-0.5 font-semibold text-blue-600 bg-blue-50/20">
-                    <BuyerHighlight>{padZero(data.maleCount)}</BuyerHighlight>
+                  <td className="border border-black px-0.5 font-semibold bg-yellow-50/10">
+                    <AutoHighlight>{padZero(data.maleCount)}</AutoHighlight>
                   </td>
-                  <td className="border border-black px-0.5 font-semibold text-blue-600 bg-blue-50/20">
-                    <BuyerHighlight>{padZero(data.femaleCount)}</BuyerHighlight>
+                  <td className="border border-black px-0.5 font-semibold bg-yellow-50/10">
+                    <AutoHighlight>{padZero(data.femaleCount)}</AutoHighlight>
                   </td>
                   <td className="border border-black px-0.5 font-semibold text-slate-500">
                     <AutoHighlight>{padZero(data.unknownCount)}</AutoHighlight>

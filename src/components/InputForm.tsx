@@ -63,12 +63,12 @@ export default function InputForm({
           updated.scientificName = "Pycnonotus jocosus";
           changed = true;
         }
-        if (!updated.weightPerIndividual || updated.weightPerIndividual === 1.2) {
-          updated.weightPerIndividual = 0.01; // default weight for bird
+        if (updated.weightPerIndividual !== 0.03) {
+          updated.weightPerIndividual = 0.03; // force weight to 0.03 kg for bird
           changed = true;
         }
-        if (!updated.vehiclePlate) {
-          updated.vehiclePlate = "Tự vận chuyển";
+        if (updated.vehiclePlate !== "") {
+          updated.vehiclePlate = ""; // default is blank dots in template
           changed = true;
         }
         if (!updated.fromAddress) {
@@ -89,8 +89,8 @@ export default function InputForm({
         }
         
         // Sync default toAddress
-        const defaultToAddress = `Hộ kinh doanh ${updated.buyerName}, ${updated.buyerAddress}`.replace(/,\s*$/, '').trim();
-        if (updated.buyerName && updated.buyerAddress && (!updated.toAddress || updated.toAddress === `Hộ kinh doanh ${prev.buyerName}, ${prev.buyerAddress}`.replace(/,\s*$/, '').trim())) {
+        const defaultToAddress = `cơ sở ông ${updated.buyerName}, ${updated.buyerAddress}`.replace(/,\s*$/, '').trim();
+        if (updated.buyerName && updated.buyerAddress && (!updated.toAddress || updated.toAddress === `cơ sở ông ${prev.buyerName}, ${prev.buyerAddress}`.replace(/,\s*$/, '').trim())) {
           updated.toAddress = defaultToAddress;
           changed = true;
         }
@@ -115,8 +115,8 @@ export default function InputForm({
       
       // 2. Auto-fill buyer details copying down to shipment destinations
       if (name === 'buyerName' || name === 'buyerAddress') {
-        const defaultToAddress = `Hộ kinh doanh ${updated.buyerName}, ${updated.buyerAddress}`.replace(/,\s*$/, '').trim();
-        const oldDefault = `Hộ kinh doanh ${prev.buyerName}, ${prev.buyerAddress}`.replace(/,\s*$/, '').trim();
+        const defaultToAddress = `cơ sở ông ${updated.buyerName}, ${updated.buyerAddress}`.replace(/,\s*$/, '').trim();
+        const oldDefault = `cơ sở ông ${prev.buyerName}, ${prev.buyerAddress}`.replace(/,\s*$/, '').trim();
         if (prev.toAddress === '' || prev.toAddress === oldDefault || prev.toAddress === prev.buyerAddress) {
           updated.toAddress = defaultToAddress;
         }
@@ -177,7 +177,7 @@ export default function InputForm({
             <Sparkles className="w-4 h-4" />
           </div>
           <h3 className="font-bold text-slate-800 text-sm md:text-base">
-            {isAdmin ? "NHẬP LIỆU BIỂU MẪU (ADMIN)" : "ĐĂNG KÝ MUA CHIM TRĨ"}
+            {isAdmin ? "NHẬP LIỆU BIỂU MẪU (ADMIN)" : "ĐĂNG KÝ MUA CHIM CHÀO MÀO"}
           </h3>
         </div>
         
@@ -359,7 +359,7 @@ export default function InputForm({
                     value={formData.speciesName}
                     onChange={handleChange}
                     disabled={isReadOnly}
-                    placeholder="Ví dụ: Trĩ đỏ khoang cổ"
+                    placeholder="Ví dụ: Chim chào mào"
                     className={inputClass}
                   />
                   <datalist id="species-options">
@@ -376,7 +376,7 @@ export default function InputForm({
                     value={formData.scientificName}
                     onChange={handleChange}
                     disabled={isReadOnly}
-                    placeholder="Phasianus colchicus"
+                    placeholder="Pycnonotus jocosus"
                     className={`${inputClass} italic`}
                   />
                 </div>
@@ -385,7 +385,7 @@ export default function InputForm({
 
             <div className={isAdmin ? "grid grid-cols-4 gap-2.5" : "grid grid-cols-2 gap-4"}>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Trĩ trống (Đực) <span className="text-slate-400 font-normal">(Con)</span></label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Chào mào trống (Đực) <span className="text-slate-400 font-normal">(Con)</span></label>
                 <input
                   type="number"
                   name="maleCount"
@@ -397,7 +397,7 @@ export default function InputForm({
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Trĩ mái (Cái) <span className="text-slate-400 font-normal">(Con)</span></label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Chào mào mái (Cái) <span className="text-slate-400 font-normal">(Con)</span></label>
                 <input
                   type="number"
                   name="femaleCount"

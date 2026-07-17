@@ -4,7 +4,20 @@
  */
 
 import { StatementData } from './types';
-import { Document, Paragraph, TextRun, Packer, Table, TableRow, TableCell, AlignmentType, WidthType, BorderStyle } from 'docx';
+import { Document, Paragraph, TextRun, Packer, Table, TableRow, TableCell, AlignmentType, WidthType, BorderStyle, ImageRun } from 'docx';
+import { QR_CODE_BASE64 } from './qrCodeBase64';
+
+function base64ToUint8Array(base64Str: string): Uint8Array {
+  const base64WithoutHeader = base64Str.split(',')[1] || base64Str;
+  const binaryString = atob(base64WithoutHeader);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
 
 // Pad single digit numbers with a leading zero (e.g. 5 -> "05")
 export function padZero(num: number | string): string {
@@ -81,7 +94,6 @@ export function quantityToWords(quantity: number): string {
 }
 
 // Convert weight to formal sentence
-// Convert weight to formal sentence
 export function weightToWords(weight: number): string {
   const roundedWeight = parseFloat(weight.toFixed(2));
   const integerPart = Math.floor(roundedWeight);
@@ -96,17 +108,15 @@ export function weightToWords(weight: number): string {
       decVal = decVal / 10;
     }
     const decimalWords = numberToVietnameseWords(decVal);
-    words += " phẩy " + decimalWords;
+    words += " phảy " + decimalWords;
   }
   
-  return words + " kilôgam";
+  return words + " kilogam";
 }
 
 // Common wildlife species in Vietnam
 export const SPECIES_LIST = [
   { name: "Chim chào mào", sci: "Pycnonotus jocosus" },
-  { name: "Trĩ đỏ khoang cổ", sci: "Phasianus colchicus" },
-  { name: "Trĩ xanh", sci: "Phasianus versicolor" },
   { name: "Cầy vòi hương", sci: "Paradoxurus hermaphroditus" },
   { name: "Rùa Trung Bộ", sci: "Mauremys annamensis" },
   { name: "Voi Châu Á", sci: "Elephas maximus" },
@@ -152,28 +162,28 @@ export function getSampleStatement(): StatementData {
   return {
     id: "ST-" + Math.random().toString(36).substr(2, 9).toUpperCase(),
     statementNo: "001/26/BKLS",
-    issueDate: todayStr,
+    issueDate: "2026-07-15",
     
     // Buyer
-    buyerName: "Nguyễn Văn A",
-    buyerCccd: "01234560123456",
-    buyerAddress: "Tổ 20, Phường Ngọc Hà, TP Hà Giang",
-    buyerPhone: "0915 123 456",
+    buyerName: "Nguyễn Mậu Thìn",
+    buyerCccd: "038089028305",
+    buyerAddress: "Tổ 20, Khu phố Hương Phước, Phường Phước Tân, TP Đồng Nai.",
+    buyerPhone: "0976 528 945",
 
     // Animal
     speciesName: "Chim chào mào",
     scientificName: "Pycnonotus jocosus",
     maleCount: 2,
-    femaleCount: 1,
+    femaleCount: 2,
     unknownCount: 0,
-    weightPerIndividual: 0.01,
+    weightPerIndividual: 0.03,
 
     // Transport
-    vehiclePlate: "29C-789.45",
-    fromDate: todayStr,
-    toDate: nextWeekStr,
+    vehiclePlate: "",
+    fromDate: "2026-07-15",
+    toDate: "2026-07-20",
     fromAddress: "Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang.",
-    toAddress: "Hộ kinh doanh Nguyễn Văn A, Tổ 20, Phường Ngọc Hà, TP Hà Giang",
+    toAddress: "cơ sở ông Nguyễn Mậu Thìn, Tổ 20, Khu phố Hương Phước, Phường Phước Tân, TP Đồng Nai.",
 
     status: 'draft',
     createdAt: new Date().toISOString()
@@ -198,29 +208,44 @@ export async function downloadDocx(data: StatementData) {
     font: "Times New Roman"
   });
 
-  // Helper for buyer text (Red, no highlight, no bold – same style as admin per user request)
+  // Helper for buyer text (Blue, no highlight, no bold)
   const buyerRun = (text: string) => new TextRun({
     text,
-    color: "FF0000",
+    color: "0000FF",
     bold: false,
     size: 24,
     font: "Times New Roman"
   });
 
-  // Helper for automatic text (Red, no highlight, no bold)
+  // Helper for automatic text (Highlighted in yellow, no bold)
   const autoRun = (text: string) => new TextRun({
     text,
-    color: "FF0000",
+    highlight: "yellow",
     bold: false,
     size: 24,
     font: "Times New Roman"
   });
+
+  // Convert base64 QR code to Uint8Array for docx
+  let qrCodeImageRun: ImageRun | null = null;
+  try {
+    const qrBytes = base64ToUint8Array(QR_CODE_BASE64);
+    qrCodeImageRun = new ImageRun({
+      data: qrBytes,
+      transformation: {
+        width: 80,
+        height: 80,
+      },
+    } as any);
+  } catch (err) {
+    console.error("Failed to load QR code image for DOCX:", err);
+  }
 
   // Helper for normal template text
   const normalRun = (text: string, bold: boolean = false, italic: boolean = false, size: number = 24) => new TextRun({
     text,
     bold,
-    italic,
+    italics: italic,
     size,
     font: "Times New Roman"
   });
@@ -243,7 +268,7 @@ export async function downloadDocx(data: StatementData) {
   const createCell = (
     text: string | TextRun[], 
     bold: boolean = false, 
-    align: AlignmentType = AlignmentType.LEFT, 
+    align: any = AlignmentType.LEFT, 
     width: number = 10,
     colSpan: number = 1,
     rowSpan: number = 1
@@ -329,6 +354,11 @@ export async function downloadDocx(data: StatementData) {
             children: [
               normalRun("BẢNG KÊ LÂM SẢN", true, false, 32)
             ],
+            alignment: AlignmentType.CENTER,
+          }),
+          // QR Code Image
+          new Paragraph({
+            children: qrCodeImageRun ? [qrCodeImageRun] : [normalRun("[Mã QR]", false, false, 18)],
             alignment: AlignmentType.CENTER,
           }),
           new Paragraph({ children: [] }), // spacer
@@ -483,7 +513,7 @@ export async function downloadDocx(data: StatementData) {
           new Paragraph({
             children: [
               normalRun("Biển kiểm soát/số hiệu phương tiện: "),
-              normalRun("................................................................................................."),
+              data.vehiclePlate ? adminRun(data.vehiclePlate) : normalRun("................................................................................................."),
               normalRun("; thời gian vận chuyển: 05 ngày; từ ngày "),
               adminRun(issueParts.day),
               normalRun(" tháng "),
@@ -498,10 +528,8 @@ export async function downloadDocx(data: StatementData) {
               autoRun(toParts.year),
               normalRun("; Vận chuyển từ: "),
               normalRun("Đội 3 thôn Kè Nhạn, xã Đồng Yên, tỉnh Tuyên Quang", true),
-              normalRun(" đến cơ sở ông "),
-              buyerRun(data.buyerName || "........................"),
-              normalRun(", "),
-              buyerRun(data.buyerAddress || "........................................................"),
+              normalRun(" đến "),
+              autoRun("cơ sở ông " + (data.buyerName || "........................") + ", " + (data.buyerAddress || "........................................................")),
               normalRun(".")
             ]
           }),
@@ -539,12 +567,7 @@ export async function downloadDocx(data: StatementData) {
                     children: [
                       new Paragraph({
                         children: [
-                          normalRun("Bắc Quang, ngày "),
-                          adminRun(issueParts.day),
-                          normalRun(" tháng "),
-                          adminRun(issueParts.month),
-                          normalRun(" năm "),
-                          adminRun(issueParts.year)
+                          normalRun("Bắc Quang, ngày        tháng     năm " + (issueParts.year || "2026")),
                         ],
                         alignment: AlignmentType.CENTER,
                       }),
@@ -670,8 +693,8 @@ export async function downloadDocx(data: StatementData) {
                   createCell("1", false, AlignmentType.CENTER, 5),
                   createCell([autoRun(data.speciesName || "Chim chào mào")], false, AlignmentType.LEFT, 10),
                   createCell([autoRun(data.scientificName || "Pycnonotus jocosus")], false, AlignmentType.LEFT, 10),
-                  createCell([buyerRun(padZero(data.maleCount))], false, AlignmentType.CENTER, 5),
-                  createCell([buyerRun(padZero(data.femaleCount))], false, AlignmentType.CENTER, 5),
+                  createCell([autoRun(padZero(data.maleCount))], false, AlignmentType.CENTER, 5),
+                  createCell([autoRun(padZero(data.femaleCount))], false, AlignmentType.CENTER, 5),
                   createCell([autoRun(padZero(data.unknownCount))], false, AlignmentType.CENTER, 7),
                   createCell([autoRun(padZero(totalQty))], false, AlignmentType.CENTER, 8),
                   createCell([autoRun(totalWeight.toLocaleString('vi-VN'))], false, AlignmentType.CENTER, 10),
@@ -704,8 +727,8 @@ export async function downloadDocx(data: StatementData) {
   const a = document.createElement('a');
   a.href = url;
   // File name follows the template "Bảng kê ĐVHD số"
-  const safeNo = data.statementNo.replace(/[\/\s]/g, '_');
-  a.download = `Bang_ke_DVHD_so_${safeNo}.docx`;
+  const numPart = data.statementNo.split('/')[0].trim();
+  a.download = `Bảng kê ĐVHD số ${numPart}.docx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
